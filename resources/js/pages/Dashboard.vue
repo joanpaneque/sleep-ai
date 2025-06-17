@@ -9,34 +9,23 @@ const logout = () => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50">
-        <nav class="bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center">
-                        <h1 class="text-xl font-semibold text-gray-900">Dashboard</h1>
-                    </div>
-                    <div class="flex items-center">
-                        <button
-                            @click="logout"
-                            class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                            Cerrar Sesión
-                        </button>
-                    </div>
-                </div>
+    <div class="min-h-screen flex items-center justify-center bg-gray-50">
+        <div class="max-w-md w-full space-y-8 p-8">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">
+                    ¡Bienvenido!
+                </h2>
+                <p class="text-gray-600 mb-8">Has iniciado sesión correctamente.</p>
             </div>
-        </nav>
-        
-        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div class="px-4 py-6 sm:px-0">
-                <div class="border-4 border-dashed border-gray-200 rounded-lg h-96 flex items-center justify-center">
-                    <div class="text-center">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-4">¡Bienvenido!</h2>
-                        <p class="text-gray-600">Has iniciado sesión correctamente.</p>
-                    </div>
-                </div>
+            
+            <div class="space-y-6">
+                <button
+                    @click="logout"
+                    class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md transition-colors duration-200"
+                >
+                    Cerrar Sesión
+                </button>
             </div>
-        </main>
+        </div>
     </div>
 </template> 
