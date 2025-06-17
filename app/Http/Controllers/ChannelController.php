@@ -13,7 +13,10 @@ class ChannelController extends Controller
      */
     public function index()
     {
-        return Inertia::render('Channels/Index');
+        $channels = Channel::all();
+        return Inertia::render('Channels/Index', [
+            'channels' => $channels
+        ]);
     }
 
     /**
