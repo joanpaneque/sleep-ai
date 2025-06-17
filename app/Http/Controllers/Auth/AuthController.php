@@ -12,6 +12,7 @@ class AuthController extends Controller
 {
     public function index()
     {
+        // test
         return Inertia::render('Auth/Login');
     }
 
