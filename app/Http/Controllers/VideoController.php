@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\Channel;
 
-class ChannelController extends Controller
+class VideoController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return Inertia::render('Channels/Index');
+        return Inertia::render('Videos/Index');
     }
 
     /**
@@ -21,7 +20,9 @@ class ChannelController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Channels/Create');
+        return Inertia::render('Videos/Create', [
+            'channel' => Channel::find($id)
+        ]);
     }
 
     /**
@@ -31,26 +32,31 @@ class ChannelController extends Controller
     {
         // validate with spanish messages
         $request->validate([
-            'name' => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'description' => 'required|string|max:255',
+            'channel_id' => 'required|exists:channels,id'
         ], [
-            'name.required' => 'El nombre es requerido',
-            'name.string' => 'El nombre debe ser una cadena de texto',
-            'name.max' => 'El nombre no puede tener más de 255 caracteres',
+            'title.required' => 'El título es requerido',
+            'title.string' => 'El título debe ser una cadena de texto',
+            'title.max' => 'El título no puede tener más de 255 caracteres',
             'description.required' => 'La descripción es requerida',
             'description.string' => 'La descripción debe ser una cadena de texto',
             'description.max' => 'La descripción no puede tener más de 255 caracteres',
+            'channel_id.required' => 'El canal es requerido',
+            'channel_id.exists' => 'El canal no existe',
         ]);
 
-        $channelName = $request->name;
-        $channelDescription = $request->description;
+        $videoTitle = $request->title;
+        $videoDescription = $request->description;
+        $videoChannelId = $request->channel_id;
 
-        $channel = Channel::create([
-            'name' => $channelName,
-            'description' => $channelDescription
+        $video = Video::create([
+            'title' => $videoTitle,
+            'description' => $videoDescription,
+            'channel_id' => $videoChannelId
         ]);
 
-        return redirect()->route('channels.index');
+        return redirect()->route('videos.index');
     }
 
     /**
@@ -58,8 +64,8 @@ class ChannelController extends Controller
      */
     public function show(string $id)
     {
-        return Inertia::render('Channels/Show', [
-            'channel' => Channel::findOrFail($id)
+        return Inertia::render('Videos/Show', [
+            'video' => Video::findOrFail($id)
         ]);
     }
 
@@ -84,9 +90,9 @@ class ChannelController extends Controller
      */
     public function destroy(string $id)
     {
-        $channel = Channel::find($id);
-        $channel->delete();
+        $video = Video::findOrFail($id);
+        $video->delete();
 
-        return redirect()->route('channels.index');
+        return redirect()->route('videos.index');
     }
 }

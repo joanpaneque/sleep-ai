@@ -1,7 +1,10 @@
 <?php
-use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
+
+use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\ChannelController;
+use App\Http\Controllers\VideoController;
+
 use Inertia\Inertia;
 
 Route::get('/login', [AuthController::class, 'index'])->name('login');
@@ -20,6 +23,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::resource('channels', ChannelController::class);
+    Route::resource('videos', VideoController::class);
 });
 
 require __DIR__.'/auth.php';
