@@ -1,5 +1,6 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
+import { Link } from '@inertiajs/vue3'
 
 const form = useForm({})
 
@@ -19,6 +20,13 @@ const logout = () => {
             </div>
             
             <div class="space-y-6">
+                <Link 
+                    href="/channels"
+                    class="block w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors duration-200 text-center"
+                >
+                    Empezar a trabajar
+                </Link>
+
                 <button
                     @click="logout"
                     class="w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md transition-colors duration-200"
@@ -28,4 +36,13 @@ const logout = () => {
             </div>
         </div>
     </div>
-</template> 
+</template>
+
+<style scoped>
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style> 
