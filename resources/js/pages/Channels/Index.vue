@@ -1,8 +1,5 @@
 <script setup>
-import { ref } from 'vue'
-import { useForm } from '@inertiajs/vue3'
-import AddChannelModal from '@/Components/AddChannelModal.vue'
-import DeleteConfirmModal from '@/Components/DeleteConfirmModal.vue'
+import { useForm, router } from '@inertiajs/vue3'
 
 defineProps({
     channels: {
@@ -11,25 +8,16 @@ defineProps({
     }
 })
 
-const showModal = ref(false)
-const showDeleteModal = ref(false)
 const deleteForm = useForm({})
-const channelToDelete = ref(null)
 
-const confirmDelete = (channel) => {
-    channelToDelete.value = channel
-    showDeleteModal.value = true
+const deleteChannel = (channelId) => {
+    if (confirm('¿Estás seguro de que quieres eliminar este canal?')) {
+        deleteForm.delete(route('channels.destroy', channelId))
+    }
 }
 
-const handleDelete = () => {
-    if (channelToDelete.value) {
-        deleteForm.delete(`/channels/${channelToDelete.value.id}`, {
-            onSuccess: () => {
-                showDeleteModal.value = false
-                channelToDelete.value = null
-            }
-        })
-    }
+const createChannel = () => {
+    router.get(route('channels.create'));
 }
 </script>
 
@@ -50,7 +38,7 @@ const handleDelete = () => {
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Add New Channel Card -->
                 <button
-                    @click="showModal = true"
+                    @click="createChannel"
                     class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center p-6 hover:border-blue-500 group"
                 >
                     <div class="bg-gray-100 rounded-full p-4 mb-4 group-hover:bg-blue-100">
@@ -81,7 +69,7 @@ const handleDelete = () => {
                                     </svg>
                                 </div>
                                 <button 
-                                    @click="confirmDelete(channel)"
+                                    @click="deleteChannel(channel.id)"
                                     class="bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200"
                                     title="Eliminar canal"
                                 >
@@ -98,18 +86,6 @@ const handleDelete = () => {
                 </div>
             </div>
         </div>
-
-        <AddChannelModal
-            :show="showModal"
-            @close="showModal = false"
-        />
-
-        <DeleteConfirmModal
-            :show="showDeleteModal"
-            :channel-name="channelToDelete?.name || ''"
-            @close="showDeleteModal = false"
-            @confirm="handleDelete"
-        />
     </div>
 </template>
 
