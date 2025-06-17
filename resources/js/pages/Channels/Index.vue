@@ -19,6 +19,9 @@ const deleteChannel = (channelId) => {
 const createChannel = () => {
     router.get(route('channels.create'));
 }
+const showChannel = (channelId) => {
+    router.get(route('channels.show', channelId));
+}
 </script>
 
 <template>
@@ -58,30 +61,35 @@ const createChannel = () => {
                 <div v-for="channel in channels" :key="channel.id" 
                      class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
                     <div class="p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h2 class="text-2xl font-bold text-gray-900">
-                                {{ channel.name }}
-                            </h2>
-                            <div class="flex items-center space-x-2">
-                                <div class="bg-blue-100 rounded-full p-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                    </svg>
+                        <div 
+                            @click="showChannel(channel.id)"
+                            class="cursor-pointer"
+                        >
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-2xl font-bold text-gray-900">
+                                    {{ channel.name }}
+                                </h2>
+                                <div class="flex items-center space-x-2">
+                                    <div class="bg-blue-100 rounded-full p-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <button 
+                                        @click.stop="deleteChannel(channel.id)"
+                                        class="bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200"
+                                        title="Eliminar canal"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
                                 </div>
-                                <button 
-                                    @click="deleteChannel(channel.id)"
-                                    class="bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200"
-                                    title="Eliminar canal"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
                             </div>
+                            <p class="text-gray-600 mb-4 line-clamp-3">
+                                {{ channel.description }}
+                            </p>
                         </div>
-                        <p class="text-gray-600 mb-4 line-clamp-3">
-                            {{ channel.description }}
-                        </p>
                     </div>
                 </div>
             </div>
