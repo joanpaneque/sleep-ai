@@ -23,7 +23,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::resource('channels', ChannelController::class);
-    Route::resource('videos', VideoController::class);
+    Route::resource('channels.videos', VideoController::class);
 });
 
 require __DIR__.'/auth.php';
