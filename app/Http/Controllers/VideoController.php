@@ -2,33 +2,38 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Channel;
+use App\Models\Video;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class VideoController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display the specified resource.
      */
-    public function index()
+    public function show(Channel $channel, Video $video)
     {
-        return Inertia::render('Videos/Index');
+        return Inertia::render('Videos/Show', [
+            'channel' => $channel,
+            'video' => $video
+        ]);
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Channel $channel)
     {
         return Inertia::render('Videos/Create', [
-            'channel' => Channel::find($id)
+            'channel' => $channel
         ]);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, Channel $channel)
     {
         // validate with spanish messages
         $request->validate([
@@ -57,16 +62,6 @@ class VideoController extends Controller
         ]);
 
         return redirect()->route('videos.index');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        return Inertia::render('Videos/Show', [
-            'video' => Video::findOrFail($id)
-        ]);
     }
 
     /**
