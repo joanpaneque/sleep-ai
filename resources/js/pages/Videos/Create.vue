@@ -26,6 +26,7 @@ const backgrounds = [
 
 const form = useForm({
     title: '',
+    description: '',
     background: '',
     language: 'es',
     channel_id: props.channel.id
@@ -73,6 +74,24 @@ const submit = () => {
                     >
                 </div>
                 <p v-if="form.errors.title" class="mt-2 text-sm text-red-600">{{ form.errors.title }}</p>
+            </div>
+
+            <!-- Description Input -->
+            <div class="relative">
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción
+                </label>
+                <div class="relative rounded-md shadow-sm">
+                    <textarea
+                        id="description"
+                        v-model="form.description"
+                        rows="3"
+                        class="block w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-colors duration-200 text-gray-700 bg-white"
+                        placeholder="Describe el contenido del video..."
+                        required
+                    ></textarea>
+                </div>
+                <p v-if="form.errors.description" class="mt-2 text-sm text-red-600">{{ form.errors.description }}</p>
             </div>
 
             <!-- Language Selection -->
