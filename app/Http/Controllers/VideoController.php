@@ -61,7 +61,7 @@ class VideoController extends Controller
             'channel_id' => $videoChannelId
         ]);
 
-        return redirect()->route('videos.index');
+        return redirect()->route('channels.show', $channel->id);
     }
 
     /**
@@ -88,6 +88,6 @@ class VideoController extends Controller
         $video = Video::findOrFail($id);
         $video->delete();
 
-        return redirect()->route('videos.index');
+        return redirect()->route('channels.index');
     }
 }
