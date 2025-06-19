@@ -67,3 +67,4 @@ jobs:
             mkdir -p storage/framework/views
             chown -R www-data:www-data storage
             chmod -R 775 storage
+            chmod -R 777 storage/app/public
