@@ -28,10 +28,10 @@ class TestCommand extends Command
     {
         // make a post request to the n8n server
         $response = N8NService::createVideo([
-            'video_title' => '3 hours of north korean mysteries',
-            'channel_id' => 3,
-            'video_id' => 1,
-            'stories_amount' => 2,
+            'video_title' => '3 hours of school secrets',
+            'channel_id' => 6,
+            'video_id' => 6,
+            'stories_amount' => 5,
 
         ]);
         dd($response);

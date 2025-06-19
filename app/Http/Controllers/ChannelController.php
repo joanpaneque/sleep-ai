@@ -62,7 +62,7 @@ class ChannelController extends Controller
     public function show(string $id)
     {
         return Inertia::render('Channels/Show', [
-            'channel' => Channel::findOrFail($id)
+            'channel' => Channel::with('videos')->findOrFail($id)
         ]);
     }
 

@@ -116,7 +116,7 @@ const scheduledVideos = [
             </h2>
             <div class="space-y-4">
                 <Link 
-                    v-for="video in completedVideos" 
+                    v-for="video in props.channel.videos" 
                     :key="video.id"
                     :href="route('channels.videos.show', [channel.id, video.id])"
                     class="block bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-indigo-50"
