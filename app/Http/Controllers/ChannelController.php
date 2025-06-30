@@ -62,7 +62,9 @@ class ChannelController extends Controller
     public function show(string $id)
     {
         return Inertia::render('Channels/Show', [
-            'channel' => Channel::with('videos')->findOrFail($id)
+            'channel' => Channel::with(['videos' => function($query) {
+                $query->orderBy('created_at', 'desc');
+            }])->findOrFail($id)
         ]);
     }
 
