@@ -99,24 +99,13 @@ const formatDate = (dateString) => {
     if (!dateString) return ''
 
     const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now - date)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 1) {
-        return 'Hace 1 día'
-    } else if (diffDays < 7) {
-        return `Hace ${diffDays} días`
-    } else if (diffDays < 30) {
-        const weeks = Math.floor(diffDays / 7)
-        return weeks === 1 ? 'Hace 1 semana' : `Hace ${weeks} semanas`
-    } else {
-        return date.toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        })
-    }
+    return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
 }
 </script>
 
@@ -199,20 +188,11 @@ const formatDate = (dateString) => {
                                 </span>
                             </div>
                             <h3 class="font-medium text-gray-900 mt-2 text-lg">{{ video.title }}</h3>
-                            <div class="mt-2 flex items-center text-sm text-gray-500 space-x-4">
-                                <div class="flex items-center">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <span>Creado {{ formatDate(video.created_at) }}</span>
-                                </div>
-                                <div v-if="video.publishedAt" class="flex items-center">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                    <span>Publicado {{ formatDate(video.publishedAt) }}</span>
-                                </div>
+                            <div class="mt-2 flex items-center text-sm text-gray-500">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{{ formatDate(video.created_at) }}</span>
                             </div>
 
                             <!-- Progress Bar or Processing Text -->
@@ -244,7 +224,7 @@ const formatDate = (dateString) => {
                         <div v-if="video.url" class="ml-4 flex-shrink-0">
                             <video
                                 :src="video.url"
-                                class="w-48 h-32 rounded-lg object-cover border border-gray-200"
+                                class="w-96 h-64 rounded-lg object-cover border border-gray-200"
                                 controls
                                 preload="metadata"
                             >
