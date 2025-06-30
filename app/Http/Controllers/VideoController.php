@@ -86,6 +86,9 @@ class VideoController extends Controller
         $video->save();
 
         if ($video->status == 'completed') {
+            // save the video url
+            $video->url = "https://sleepai.online/storage/channels/" . $video->channel_id . "/videos/" . $video->id . "/render/render.mp4";
+            $video->save();
             N8NService::processNextVideo();
         }
     }

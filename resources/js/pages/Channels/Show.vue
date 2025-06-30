@@ -202,6 +202,19 @@ const getStatusText = (status) => {
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Small Video Preview -->
+                        <div v-if="video.url" class="ml-4 flex-shrink-0">
+                            <video
+                                :src="video.url"
+                                class="w-32 h-20 rounded-lg object-cover border border-gray-200"
+                                controls
+                                preload="metadata"
+                            >
+                                Tu navegador no soporta el elemento de video.
+                            </video>
+                        </div>
+
                         <div class="ml-4 p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
