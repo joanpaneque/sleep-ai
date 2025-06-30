@@ -180,7 +180,7 @@ const getStatusText = (status) => {
 
                             <!-- Progress Bar or Processing Text -->
                             <div class="mt-3">
-                                <div v-if="video.status_progress === null && video.status !== 'pending'" class="flex items-center text-sm text-gray-500">
+                                <div v-if="video.status_progress === null && ['generating_script', 'generating_content', 'rendering'].includes(video.status)" class="flex items-center text-sm text-gray-500">
                                     <svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>

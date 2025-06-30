@@ -85,7 +85,7 @@ class VideoController extends Controller
         $video->status_progress = $request->status_progress;
         $video->save();
 
-        if ($request->status == 'completed') {
+        if ($video->status == 'completed') {
             N8NService::processNextVideo();
         }
     }
