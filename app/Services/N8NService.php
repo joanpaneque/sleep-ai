@@ -9,7 +9,7 @@ use App\Models\Video;
 class N8NService {
 
 
-    private static $serverURL = "https://n8n.sleepai.online/webhook-test/process-video";
+    private static $serverURL = "https://n8n.sleepai.online/webhook/process-video";
 
     public static $languageVoices = [
         'en' => [
@@ -76,5 +76,20 @@ class N8NService {
     {
         $videos = Video::whereIn('status', ['generating_script', 'generating_content', 'rendering'])->get();
         return $videos->count() > 0;
+    }
+
+    // get the video that has been waiting the longest in pending status (the oldest)
+    private static function getOldestPendingVideo()
+    {
+        return Video::where('status', 'pending')->orderBy('created_at', 'asc')->first();
+    }
+
+
+    public static function processNextVideo()
+    {
+        $video = self::getOldestPendingVideo();
+        if ($video) {
+            self::callWebhook($video);
+        }
     }
 }
