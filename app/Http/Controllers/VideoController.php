@@ -6,6 +6,7 @@ use App\Models\Channel;
 use App\Models\Video;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Services\N8NService;
 
 class VideoController extends Controller
 {
@@ -26,7 +27,8 @@ class VideoController extends Controller
     public function create(Channel $channel)
     {
         return Inertia::render('Videos/Create', [
-            'channel' => $channel
+            'channel' => $channel,
+            'languages' => \App\Services\N8NService::$languageVoices
         ]);
     }
 
@@ -39,7 +41,10 @@ class VideoController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string|max:255',
-            'channel_id' => 'required|exists:channels,id'
+            'channel_id' => 'required|exists:channels,id',
+            'stories_amount' => 'required|integer|min:1|max:100',
+            'characters_amount' => 'required|integer|min:1|max:10000',
+            'language' => 'required|string'
         ], [
             'title.required' => 'El título es requerido',
             'title.string' => 'El título debe ser una cadena de texto',
@@ -49,19 +54,36 @@ class VideoController extends Controller
             'description.max' => 'La descripción no puede tener más de 255 caracteres',
             'channel_id.required' => 'El canal es requerido',
             'channel_id.exists' => 'El canal no existe',
+            'stories_amount.required' => 'La cantidad de historias es requerida',
+            'stories_amount.integer' => 'La cantidad de historias debe ser un número entero',
+            'stories_amount.min' => 'La cantidad de historias debe ser al menos 1',
+            'stories_amount.max' => 'La cantidad de historias no puede ser mayor a 100',
+            'characters_amount.required' => 'La cantidad de caracteres es requerida',
+            'characters_amount.integer' => 'La cantidad de caracteres debe ser un número entero',
+            'characters_amount.min' => 'La cantidad de caracteres debe ser al menos 1',
+            'characters_amount.max' => 'La cantidad de caracteres no puede ser mayor a 10000',
+            'language.required' => 'El idioma es requerido',
+            'language.string' => 'El idioma debe ser una cadena de texto',
+            'language.in' => 'El idioma seleccionado no es válido',
         ]);
 
-        $videoTitle = $request->title;
-        $videoDescription = $request->description;
-        $videoChannelId = $request->channel_id;
-
-        $video = Video::create([
-            'title' => $videoTitle,
-            'description' => $videoDescription,
-            'channel_id' => $videoChannelId
+        $response = N8NService::createVideo([
+            'title' => $request->title,
+            'description' => $request->description,
+            'channel_id' => $request->channel_id,
+            'stories_amount' => $request->stories_amount,
+            'characters_amount' => $request->characters_amount,
+            'language' => $request->language
         ]);
 
         return redirect()->route('channels.show', $channel->id);
+    }
+
+    public function updateStatus(Request $request, Video $video)
+    {
+        $video->status = $request->status;
+        $video->status_progress = $request->status_progress;
+        $video->save();
     }
 
     /**

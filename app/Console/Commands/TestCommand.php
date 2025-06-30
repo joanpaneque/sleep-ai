@@ -30,7 +30,7 @@ class TestCommand extends Command
         $response = N8NService::createVideo([
             'title' => '3 hours of sleep paradoxes to fall asleep to',
             'description' => '3 hours of sleep paradoxes to fall asleep to',
-            'channel_id' => 2,
+            'channel_id' => 1,
             'stories_amount' => 2,
             'characters_amount' => 200,
             'language' => 'es'

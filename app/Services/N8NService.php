@@ -4,13 +4,14 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use App\Models\Channel;
+use App\Models\Video;
 
 class N8NService {
 
 
     private static $serverURL = "https://n8n.sleepai.online/webhook-test/process-video";
 
-    private static $languageVoices = [
+    public static $languageVoices = [
         'en' => [
             "language" => "en-US",
             "voice" => "en-US-Chirp3-HD-Charon",
@@ -37,25 +38,43 @@ class N8NService {
             'title' => $data['title'],
             'description' => $data['description'],
             'stories_amount' => $data['stories_amount'],
+            'characters_amount' => $data['characters_amount'],
+            'stories_amount' => $data['stories_amount'],
+            'language' => json_encode(self::$languageVoices[$language])
         ]);
 
-        $processedData = [
-            'video_title' => $data['title'],
-            'channel_id' => $data['channel_id'],
-            'video_id' => $video->id,
-            'stories_amount' => $data['stories_amount'],
-            'characters_amount' => $data['characters_amount'],
-            'language' => self::$languageVoices[$language]
-        ];
+        // $processedData = [
+        //     'video_title' => $data['title'],
+        //     'channel_id' => $data['channel_id'],
+        //     'video_id' => $video->id,
+        //     'stories_amount' => $data['stories_amount'],
+        //     'characters_amount' => $data['characters_amount'],
+        //     'language' => self::$languageVoices[$language]
+        // ];
 
-        $response = self::callWebhook($processedData);
+        $response = self::callWebhook($video);
         return ['video_id' => $video->id, 'server_response' => $response];
     }
 
 
-    private static function callWebhook($data)
+    private static function callWebhook($video)
     {
-        $response = Http::post(self::$serverURL, $data);
+        if (self::isVideoRendering()) {
+            return false;
+        }
+
+        $video->status = 'generating_script';
+        $video->status_progress = null;
+        $video->save();
+
+        $response = Http::post(self::$serverURL, $video);
         return $response->json();
+    }
+
+
+    private static function isVideoRendering()
+    {
+        $videos = Video::whereIn('status', ['generating_script', 'generating_content', 'rendering'])->get();
+        return $videos->count() > 0;
     }
 }

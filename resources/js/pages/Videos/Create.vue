@@ -3,32 +3,16 @@ import { useForm } from '@inertiajs/vue3'
 import { Link } from '@inertiajs/vue3'
 
 const props = defineProps({
-    channel: Object
+    channel: Object,
+    languages: Object
 })
-
-const languages = [
-    { code: 'es', name: 'Español' },
-    { code: 'en', name: 'English' },
-    { code: 'fr', name: 'Français' },
-    { code: 'de', name: 'Deutsch' },
-    { code: 'it', name: 'Italiano' },
-    { code: 'pt', name: 'Português' }
-]
-
-const backgrounds = [
-    { id: 'nature', name: 'Particles 1', description: 'Paisajes relajantes y sonidos naturales' },
-    { id: 'ocean', name: 'Particles 2', description: 'Olas y sonidos marinos' },
-    { id: 'rain', name: 'Particles 3', description: 'Lluvia suave y truenos lejanos' },
-    { id: 'forest', name: 'Space 1', description: 'Ambiente de bosque con pájaros' },
-    { id: 'white_noise', name: 'Space 2', description: 'Sonido uniforme y calmante' },
-    { id: 'meditation', name: 'Fire', description: 'Música ambiental para meditación' }
-]
 
 const form = useForm({
     title: '',
     description: '',
-    background: '',
     language: 'es',
+    stories_amount: 5,
+    characters_amount: 200,
     channel_id: props.channel.id
 })
 
@@ -87,7 +71,7 @@ const submit = () => {
                         v-model="form.description"
                         rows="3"
                         class="block w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-colors duration-200 text-gray-700 bg-white"
-                        placeholder="Describe el contenido del video..."
+                        placeholder="Describe el contenido del video... (esto no se usa para generar el video, aqui puedes poner notas para ti)"
                         required
                     ></textarea>
                 </div>
@@ -106,8 +90,8 @@ const submit = () => {
                         class="block w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-colors duration-200 text-gray-700 bg-white appearance-none"
                         required
                     >
-                        <option v-for="lang in languages" :key="lang.code" :value="lang.code">
-                            {{ lang.name }}
+                        <option v-for="(lang, code) in languages" :key="code" :value="code">
+                            {{ lang.language_name }}
                         </option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
@@ -119,38 +103,44 @@ const submit = () => {
                 <p v-if="form.errors.language" class="mt-2 text-sm text-red-600">{{ form.errors.language }}</p>
             </div>
 
-            <!-- Background Selection -->
+            <!-- Stories Amount -->
             <div class="relative">
-                <label class="block text-sm font-medium text-gray-700 mb-3">Fondo del Video</label>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div
-                        v-for="bg in backgrounds"
-                        :key="bg.id"
-                        @click="form.background = bg.id"
-                        class="relative rounded-xl border-2 bg-white px-5 py-4 cursor-pointer transition-all duration-200 hover:shadow-md"
-                        :class="[
-                            form.background === bg.id 
-                                ? 'border-indigo-500 ring-2 ring-indigo-200' 
-                                : 'border-gray-200 hover:border-indigo-200'
-                        ]"
+                <label for="stories_amount" class="block text-sm font-medium text-gray-700 mb-1">
+                    Cantidad de Historias
+                </label>
+                <div class="relative rounded-md shadow-sm">
+                    <input
+                        type="number"
+                        id="stories_amount"
+                        v-model="form.stories_amount"
+                        min="1"
+                        max="100"
+                        class="block w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-colors duration-200 text-gray-700 bg-white"
+                        required
                     >
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-                                    <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-sm font-medium text-gray-900">{{ bg.name }}</h3>
-                                <p class="text-xs text-gray-500 mt-1">{{ bg.description }}</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-                <p v-if="form.errors.background" class="mt-2 text-sm text-red-600">{{ form.errors.background }}</p>
+                <p class="mt-1 text-sm text-gray-500">Número de historias que incluirá el video (1-100)</p>
+                <p v-if="form.errors.stories_amount" class="mt-2 text-sm text-red-600">{{ form.errors.stories_amount }}</p>
+            </div>
+
+            <!-- Characters Amount -->
+            <div class="relative">
+                <label for="characters_amount" class="block text-sm font-medium text-gray-700 mb-1">
+                    Cantidad de Caracteres
+                </label>
+                <div class="relative rounded-md shadow-sm">
+                    <input
+                        type="number"
+                        id="characters_amount"
+                        v-model="form.characters_amount"
+                        min="1"
+                        max="10000"
+                        class="block w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-colors duration-200 text-gray-700 bg-white"
+                        required
+                    >
+                </div>
+                <p class="mt-1 text-sm text-gray-500">Número de caracteres por historia (1-10000)</p>
+                <p v-if="form.errors.characters_amount" class="mt-2 text-sm text-red-600">{{ form.errors.characters_amount }}</p>
             </div>
 
             <!-- Submit Button -->
@@ -160,10 +150,10 @@ const submit = () => {
                     :disabled="form.processing"
                     class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
-                    <svg 
+                    <svg
                         v-if="form.processing"
-                        class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" 
-                        fill="none" 
+                        class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                        fill="none"
                         viewBox="0 0 24 24"
                     >
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />

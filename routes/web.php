@@ -26,4 +26,10 @@ Route::middleware('auth')->group(function () {
     Route::resource('channels.videos', VideoController::class);
 });
 
+// route prefix api
+Route::prefix('api')->group(function () {
+    // route to update video status
+    Route::post('videos/{video}/status', [VideoController::class, 'updateStatus']);
+});
+
 require __DIR__.'/auth.php';
