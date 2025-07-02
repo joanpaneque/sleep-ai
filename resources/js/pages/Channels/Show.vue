@@ -244,7 +244,7 @@ const formatDate = (dateString) => {
                         </div>
 
                         <!-- Video Link -->
-                        <div v-if="video.url" class="ml-4 flex-shrink-0">
+                        <div v-if="video.url" class="ml-4 flex-shrink-0 flex space-x-2">
                             <a
                                 :href="video.url"
                                 target="_blank"
@@ -257,6 +257,18 @@ const formatDate = (dateString) => {
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 Ver Video
+                            </a>
+                            <a
+                                :href="`https://sleepai.online/storage/channels/${channel.id}/${video.id}/timestamps.txt`"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                @click.stop
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Ver Timestamps
                             </a>
                         </div>
 
