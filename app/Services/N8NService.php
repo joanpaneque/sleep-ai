@@ -58,17 +58,8 @@ class N8NService {
             'language' => json_encode(self::$languageVoices[$language])
         ]);
 
-        // $processedData = [
-        //     'video_title' => $data['title'],
-        //     'channel_id' => $data['channel_id'],
-        //     'video_id' => $video->id,
-        //     'stories_amount' => $data['stories_amount'],
-        //     'characters_amount' => $data['characters_amount'],
-        //     'language' => self::$languageVoices[$language]
-        // ];
-
-        // load 'channel' from video
-        $video->load('channel');
+        // get video from database with channel
+        $video = Video::with('channel')->find($video->id);
 
         $response = self::callWebhook($video);
         return ['video_id' => $video->id, 'server_response' => $response];
