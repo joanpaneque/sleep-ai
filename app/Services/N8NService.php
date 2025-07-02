@@ -21,7 +21,22 @@ class N8NService {
             "language" => "es-ES",
             "voice" => "es-ES-Chirp3-HD-Charon",
             "language_name" => "Español de España"
-        ]
+        ],
+        'de' => [
+            "language" => "de-DE",
+            "voice" => "de-DE-Chirp3-HD-Charon",
+            "language_name" => "Deutsch (Germany)"
+        ],
+        'fr' => [
+            "language" => "fr-FR",
+            "voice" => "fr-FR-Chirp3-HD-Charon",
+            "language_name" => "Français (France)"
+        ],
+        'pt' => [
+            "language" => "pt-BR",
+            "voice" => "pt-BR-Chirp3-HD-Charon",
+            "language_name" => "Português (Brazil)"
+        ],
     ];
 
     public static function createVideo($data)
