@@ -93,7 +93,7 @@ class N8NService {
     private static function isVideoRendering()
     {
         $videos = Video::whereIn('status', ['generating_script', 'generating_content', 'rendering'])->get();
-        return $videos->count() > 0;
+        return $videos->count() > 2;
     }
 
     // get the video that has been waiting the longest in pending status (the oldest)
