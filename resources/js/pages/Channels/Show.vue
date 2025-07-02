@@ -1,10 +1,13 @@
 <script setup>
-import { Link, usePoll } from '@inertiajs/vue3'
+import { Link, usePoll, router } from '@inertiajs/vue3'
 
 const props = defineProps({
     channel: Object
 })
 
+const editChannel = () => {
+    router.get(route('channels.edit', props.channel.id))
+}
 
 usePoll(2000);
 // Mock data for demonstration
@@ -111,7 +114,7 @@ const formatDate = (dateString) => {
 
 <template>
     <div class=" mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-b from-indigo-50 to-white">
-        <!-- Back Button and Create Button -->
+        <!-- Back Button and Action Buttons -->
         <div class="flex justify-between items-center mb-6">
             <Link
                 href="/channels"
@@ -128,19 +131,39 @@ const formatDate = (dateString) => {
                 Volver a Canales
             </Link>
 
-            <Link
-                :href="route('channels.videos.create', channel.id)"
-                class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-            >
-                <svg
-                    class="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            <div class="flex items-center space-x-3">
+                <!-- Edit Channel Button -->
+                <button
+                    @click="editChannel"
+                    class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-600 text-white hover:bg-green-700 transition-colors"
+                    title="Editar canal"
                 >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-            </Link>
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </button>
+
+                <!-- Create Video Button -->
+                <Link
+                    :href="route('channels.videos.create', channel.id)"
+                    class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                    title="Crear nuevo video"
+                >
+                    <svg
+                        class="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </Link>
+            </div>
         </div>
 
         <!-- Channel Header -->
@@ -220,16 +243,21 @@ const formatDate = (dateString) => {
                             </div>
                         </div>
 
-                        <!-- Small Video Preview -->
+                        <!-- Video Link -->
                         <div v-if="video.url" class="ml-4 flex-shrink-0">
-                            <video
-                                :src="video.url"
-                                class="w-96 h-64 rounded-lg object-cover border border-gray-200"
-                                controls
-                                preload="metadata"
+                            <a
+                                :href="video.url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                @click.stop
                             >
-                                Tu navegador no soporta el elemento de video.
-                            </video>
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Ver Video
+                            </a>
                         </div>
 
                         <div class="ml-4 p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">

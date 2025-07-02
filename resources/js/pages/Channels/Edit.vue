@@ -1,27 +1,39 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+
+const props = defineProps({
+    channel: Object
+})
 
 const form = useForm({
-    name: '',
-    description: '',
+    name: props.channel.name,
+    description: props.channel.description,
     intro: null
 })
 
 const introFile = ref(null)
 const isDragOver = ref(false)
 const videoPreviewUrl = ref(null)
+const currentVideoUrl = ref(null)
 
 // Extensiones de video permitidas
 const allowedVideoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mpeg', 'mpg', 'm4v', 'webm', 'mkv']
 const maxFileSize = 512 * 1024 * 1024 // 512MB en bytes
+
+// Configurar video actual al montar el componente
+onMounted(() => {
+    if (props.channel.intro) {
+        currentVideoUrl.value = `/storage/intros/${props.channel.intro}`
+    }
+})
 
 const submit = () => {
     // Transform form data to include the file
     form.transform((data) => ({
         ...data,
         intro: introFile.value
-    })).post(route('channels.store'), {
+    })).patch(route('channels.update', props.channel.id), {
         onSuccess: () => {
             form.reset()
             introFile.value = null
@@ -98,6 +110,15 @@ const formatFileSize = (bytes) => {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+// Computed para mostrar el video actual o el preview
+const displayVideoUrl = computed(() => {
+    return videoPreviewUrl.value || currentVideoUrl.value
+})
+
+const hasNewFile = computed(() => {
+    return !!introFile.value
+})
 </script>
 
 <template>
@@ -108,14 +129,14 @@ const formatFileSize = (bytes) => {
                 <div class="text-center mb-8">
                     <div class="bg-blue-100 rounded-full p-3 w-14 h-14 mx-auto mb-4 flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                     </div>
                     <h1 class="text-3xl font-bold text-gray-900">
-                        Nuevo Canal
+                        Editar Canal
                     </h1>
                     <p class="mt-2 text-gray-600">
-                        Añade un nuevo canal de YouTube para analizar
+                        Modifica la información del canal "{{ channel.name }}"
                     </p>
                 </div>
 
@@ -167,6 +188,33 @@ const formatFileSize = (bytes) => {
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             Video Intro del Canal
                         </label>
+                        <p class="text-sm text-gray-500 mb-3">
+                            {{ hasNewFile ? 'Nuevo archivo seleccionado (reemplazará el actual)' : 'Deja vacío para mantener el video actual' }}
+                        </p>
+
+                        <!-- Video actual o preview -->
+                        <div v-if="displayVideoUrl" class="mb-4">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">
+                                    {{ hasNewFile ? 'Nuevo video (vista previa)' : 'Video actual' }}
+                                </h4>
+                                <video
+                                    :src="displayVideoUrl"
+                                    controls
+                                    class="max-w-full h-48 rounded-lg shadow-sm mx-auto"
+                                >
+                                    Tu navegador no soporta el elemento de video.
+                                </video>
+                                <button
+                                    v-if="hasNewFile"
+                                    type="button"
+                                    @click="removeIntroFile"
+                                    class="mt-2 text-red-500 hover:text-red-700 text-sm"
+                                >
+                                    ✕ Cancelar cambio
+                                </button>
+                            </div>
+                        </div>
 
                         <!-- Zona de drag & drop -->
                         <div
@@ -205,25 +253,13 @@ const formatFileSize = (bytes) => {
                                 </div>
                             </div>
 
-                            <!-- Preview del archivo seleccionado -->
+                            <!-- Información del nuevo archivo seleccionado -->
                             <div v-else class="space-y-4">
-                                <!-- Video preview -->
-                                <div class="flex justify-center">
-                                    <video
-                                        v-if="videoPreviewUrl"
-                                        :src="videoPreviewUrl"
-                                        controls
-                                        class="max-w-full h-48 rounded-lg shadow-sm"
-                                    >
-                                        Tu navegador no soporta el elemento de video.
-                                    </video>
-                                </div>
-
                                 <!-- Información del archivo -->
-                                <div class="bg-gray-50 rounded-lg p-4">
+                                <div class="bg-green-50 rounded-lg p-4">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center space-x-3">
-                                            <svg class="h-8 w-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <svg class="h-8 w-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
                                             </svg>
                                             <div>
@@ -267,7 +303,7 @@ const formatFileSize = (bytes) => {
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            {{ form.processing ? 'Guardando...' : 'Guardar Canal' }}
+                            {{ form.processing ? 'Actualizando...' : 'Actualizar Canal' }}
                         </button>
                     </div>
                 </form>

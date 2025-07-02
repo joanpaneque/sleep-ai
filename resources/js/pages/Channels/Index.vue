@@ -22,6 +22,10 @@ const createChannel = () => {
 const showChannel = (channelId) => {
     router.get(route('channels.show', channelId));
 }
+
+const editChannel = (channelId) => {
+    router.get(route('channels.edit', channelId));
+}
 </script>
 
 <template>
@@ -58,10 +62,10 @@ const showChannel = (channelId) => {
                 </button>
 
                 <!-- Existing Channel Cards -->
-                <div v-for="channel in channels" :key="channel.id" 
+                <div v-for="channel in channels" :key="channel.id"
                      class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
                     <div class="p-6">
-                        <div 
+                        <div
                             @click="showChannel(channel.id)"
                             class="cursor-pointer"
                         >
@@ -69,13 +73,22 @@ const showChannel = (channelId) => {
                                 <h2 class="text-2xl font-bold text-gray-900">
                                     {{ channel.name }}
                                 </h2>
-                                <div class="flex items-center space-x-2">
+                                                                <div class="flex items-center space-x-2">
                                     <div class="bg-blue-100 rounded-full p-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                         </svg>
                                     </div>
-                                    <button 
+                                    <button
+                                        @click.stop="editChannel(channel.id)"
+                                        class="bg-green-100 rounded-full p-2 hover:bg-green-200 transition-colors duration-200"
+                                        title="Editar canal"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                    <button
                                         @click.stop="deleteChannel(channel.id)"
                                         class="bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200"
                                         title="Eliminar canal"
