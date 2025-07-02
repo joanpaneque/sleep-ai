@@ -9,7 +9,8 @@ const props = defineProps({
 const form = useForm({
     name: props.channel.name,
     description: props.channel.description,
-    intro: null
+    intro: null,
+    _method: 'PATCH'
 })
 
 const introFile = ref(null)
@@ -33,7 +34,7 @@ const submit = () => {
     form.transform((data) => ({
         ...data,
         intro: introFile.value
-    })).patch(route('channels.update', props.channel.id), {
+    })).post(route('channels.update', props.channel.id), {
         onSuccess: () => {
             form.reset()
             introFile.value = null

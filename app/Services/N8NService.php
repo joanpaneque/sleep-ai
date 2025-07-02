@@ -52,6 +52,9 @@ class N8NService {
         //     'language' => self::$languageVoices[$language]
         // ];
 
+        // load 'channel' from video
+        $video->load('channel');
+
         $response = self::callWebhook($video);
         return ['video_id' => $video->id, 'server_response' => $response];
     }
