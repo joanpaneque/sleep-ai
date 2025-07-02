@@ -5,7 +5,8 @@ import { ref, computed } from 'vue'
 const form = useForm({
     name: '',
     description: '',
-    intro: null
+    intro: null,
+    remove_intro: false
 })
 
 const introFile = ref(null)
@@ -20,7 +21,8 @@ const submit = () => {
     // Transform form data to include the file
     form.transform((data) => ({
         ...data,
-        intro: introFile.value
+        intro: introFile.value,
+        remove_intro: form.remove_intro
     })).post(route('channels.store'), {
         onSuccess: () => {
             form.reset()
@@ -74,6 +76,7 @@ const setIntroFile = (file) => {
 
     introFile.value = file
     form.intro = file
+    form.remove_intro = false // Reset remove flag when new file is selected
 
     // Crear URL de preview
     if (videoPreviewUrl.value) {
@@ -85,6 +88,7 @@ const setIntroFile = (file) => {
 const removeIntroFile = () => {
     introFile.value = null
     form.intro = null
+    form.remove_intro = true
     if (videoPreviewUrl.value) {
         URL.revokeObjectURL(videoPreviewUrl.value)
         videoPreviewUrl.value = null

@@ -43,7 +43,8 @@ class ChannelController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string|max:255',
-            'intro' => 'required|file|mimes:mp4,mov,avi,wmv,flv,mpeg,mpg,m4v,webm,mkv|max:512000',
+            'intro' => 'nullable|file|mimes:mp4,mov,avi,wmv,flv,mpeg,mpg,m4v,webm,mkv|max:512000',
+            'remove_intro' => 'nullable|boolean',
         ], [
             'name.required' => 'El nombre es requerido',
             'name.string' => 'El nombre debe ser una cadena de texto',
@@ -51,7 +52,6 @@ class ChannelController extends Controller
             'description.required' => 'La descripción es requerida',
             'description.string' => 'La descripción debe ser una cadena de texto',
             'description.max' => 'La descripción no puede tener más de 255 caracteres',
-            'intro.required' => 'La intro es requerida',
             'intro.file' => 'La intro debe ser un archivo',
             'intro.mimes' => 'La intro debe ser un archivo de video',
             'intro.max' => 'La intro no puede tener más de 500MB',
@@ -64,7 +64,9 @@ class ChannelController extends Controller
 
         // Manejo más robusto del archivo
         $introName = null;
-        if ($request->hasFile('intro')) {
+
+        // Si no se está eliminando la intro y hay archivo
+        if (!$request->remove_intro && $request->hasFile('intro')) {
             Log::info('File detected');
             $intro = $request->file('intro');
             Log::info('File details:', [
@@ -101,6 +103,9 @@ class ChannelController extends Controller
                 Log::error('File is not valid');
                 return back()->withErrors(['intro' => 'El archivo no es válido']);
             }
+        } else if ($request->remove_intro) {
+            Log::info('Intro removal requested');
+            $introName = null;
         } else {
             Log::error('No file detected in request');
         }
@@ -163,6 +168,7 @@ class ChannelController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'required|string|max:255',
             'intro' => 'nullable|file|mimes:mp4,mov,avi,wmv,flv,mpeg,mpg,m4v,webm,mkv|max:512000',
+            'remove_intro' => 'nullable|boolean',
         ], [
             'name.required' => 'El nombre es requerido',
             'name.string' => 'El nombre debe ser una cadena de texto',
@@ -182,7 +188,15 @@ class ChannelController extends Controller
         $introName = $channel->intro; // Mantener el archivo actual por defecto
 
         // Manejo del archivo de intro (opcional en update)
-        if ($request->hasFile('intro')) {
+        if ($request->remove_intro) {
+            Log::info('Intro removal requested for update');
+            // Eliminar el archivo anterior si existe
+            if ($channel->intro && Storage::disk('public')->exists('intros/' . $channel->intro)) {
+                Storage::disk('public')->delete('intros/' . $channel->intro);
+                Log::info('Old file deleted:', ['filename' => $channel->intro]);
+            }
+            $introName = null;
+        } else if ($request->hasFile('intro')) {
             Log::info('New file detected for update');
             $intro = $request->file('intro');
             Log::info('File details:', [
