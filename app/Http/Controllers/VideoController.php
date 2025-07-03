@@ -87,9 +87,8 @@ class VideoController extends Controller
             return redirect()->route('channels.show', $video->channel_id);
         }
 
-        // get video from database
-        $video = Video::find($video->id);
         $video->status = 'pending';
+        $video->is_deleted = false;
         $video->save();
 
         Log::info('Status updated to pending');
