@@ -23,6 +23,7 @@ class Video extends Model
         }
 
         $this->is_deleted = true;
+        $this->url = null;
         $this->save();
     }
 }
