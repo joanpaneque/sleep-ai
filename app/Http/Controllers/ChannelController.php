@@ -10,14 +10,90 @@ use Illuminate\Support\Facades\Log;
 
 class ChannelController extends Controller
 {
+            /**
+     * Calculate storage usage statistics
+     */
+    private function getStorageStats()
+    {
+        $publicPath = storage_path('app/public');
+        $appDataSize = 0;
+
+        // Calculate total size of storage/app/public directory (our app data)
+        if (is_dir($publicPath)) {
+            $appDataSize = $this->getDirectorySize($publicPath);
+        }
+
+        // Get disk space information (entire disk)
+        $freeSpace = disk_free_space($publicPath);
+        $totalDiskSpace = disk_total_space($publicPath);
+        $usedDiskSpace = $totalDiskSpace - $freeSpace;
+
+        // Calculate system weight (everything except our app data)
+        $systemWeight = $usedDiskSpace - $appDataSize;
+
+        // Calculate available space for the app (total disk - system weight)
+        $availableSpaceForApp = $totalDiskSpace - $systemWeight;
+
+        // Calculate percentage used of available space for app
+        $usedPercentage = $availableSpaceForApp > 0 ? round(($appDataSize / $availableSpaceForApp) * 100, 1) : 0;
+
+        return [
+            'used_space_mb' => round($appDataSize / (1024 * 1024), 2),
+            'free_space_mb' => round($freeSpace / (1024 * 1024), 2),
+            'total_space_mb' => round($availableSpaceForApp / (1024 * 1024), 2),
+            'used_percentage' => $usedPercentage,
+            'used_space_formatted' => $this->formatBytes($appDataSize),
+            'free_space_formatted' => $this->formatBytes($freeSpace),
+            'total_space_formatted' => $this->formatBytes($availableSpaceForApp),
+            'app_data_size' => $this->formatBytes($appDataSize),
+            'system_weight' => $this->formatBytes($systemWeight),
+            'disk_total_space' => $this->formatBytes($totalDiskSpace)
+        ];
+    }
+
+    /**
+     * Calculate directory size recursively
+     */
+    private function getDirectorySize($directory)
+    {
+        $size = 0;
+
+        if (is_dir($directory)) {
+            foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory)) as $file) {
+                if ($file->isFile()) {
+                    $size += $file->getSize();
+                }
+            }
+        }
+
+        return $size;
+    }
+
+    /**
+     * Format bytes to human readable format
+     */
+    private function formatBytes($bytes, $precision = 2)
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+
+        return round($bytes, $precision) . ' ' . $units[$i];
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         $channels = Channel::all();
+        $storageStats = $this->getStorageStats();
+
         return Inertia::render('Channels/Index', [
-            'channels' => $channels
+            'channels' => $channels,
+            'storage_stats' => $storageStats
         ]);
     }
 

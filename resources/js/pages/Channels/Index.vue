@@ -1,12 +1,18 @@
 <script setup>
-import { useForm, router } from '@inertiajs/vue3'
+import { useForm, router, usePoll } from '@inertiajs/vue3'
 
 defineProps({
     channels: {
         type: Array,
         required: true
+    },
+    storage_stats: {
+        type: Object,
+        required: true
     }
 })
+
+usePoll(2000);
 
 const deleteForm = useForm({})
 
@@ -39,6 +45,95 @@ const editChannel = (channelId) => {
                 <p class="text-lg text-gray-600 max-w-2xl mx-auto">
                     Administra y analiza los canales de YouTube para optimizar el contenido relacionado con el sueño.
                 </p>
+            </div>
+
+            <!-- Storage Statistics -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-blue-100 rounded-full p-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7M4 7c0-2.21 1.79-4 4-4h8c2.21 0 4 1.79 4 4M4 7h16M8 11h8" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-900">Almacenamiento</h3>
+                            <p class="text-sm text-gray-500">Espacio disponible para la aplicación</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-gray-900">
+                            {{ storage_stats.used_percentage }}%
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            {{ storage_stats.used_space_formatted }} usado
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span>Espacio Usado</span>
+                        <span>{{ storage_stats.used_space_formatted }} / {{ storage_stats.total_space_formatted }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                            class="h-3 rounded-full transition-all duration-300"
+                            :class="{
+                                'bg-green-500': storage_stats.used_percentage < 50,
+                                'bg-yellow-500': storage_stats.used_percentage >= 50 && storage_stats.used_percentage < 80,
+                                'bg-red-500': storage_stats.used_percentage >= 80
+                            }"
+                            :style="{ width: storage_stats.used_percentage + '%' }"
+                        ></div>
+                    </div>
+                </div>
+
+                                                                <!-- Storage Details -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Espacio Usado</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ storage_stats.used_space_formatted }}</p>
+                            </div>
+                            <div class="bg-blue-100 rounded-full p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2v2zm0 0h18M7 21l4-4 4 4" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Espacio Disponible</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ storage_stats.free_space_formatted }}</p>
+                            </div>
+                            <div class="bg-green-100 rounded-full p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Espacio Total</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ storage_stats.total_space_formatted }}</p>
+                            </div>
+                            <div class="bg-purple-100 rounded-full p-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Channels Grid -->
