@@ -226,10 +226,9 @@ const formatDate = (dateString) => {
                 Videos
             </h2>
             <div class="space-y-4">
-                <Link
+                <div
                     v-for="video in props.channel.videos.filter(v => !v.is_deleted)"
                     :key="video.id"
-                    :href="route('channels.videos.show', [channel.id, video.id])"
                     class="block bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-indigo-50"
                 >
                     <div class="flex items-center justify-between">
@@ -315,13 +314,8 @@ const formatDate = (dateString) => {
                             </button>
                         </div>
 
-                        <div class="ml-4 p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                            </svg>
-                        </div>
                     </div>
-                </Link>
+                </div>
             </div>
         </div>
 
@@ -334,10 +328,9 @@ const formatDate = (dateString) => {
                 Videos Eliminados
             </h2>
             <div class="space-y-4">
-                <Link
+                <div
                     v-for="video in props.channel.videos.filter(v => v.is_deleted)"
                     :key="video.id"
-                    :href="route('channels.videos.show', [channel.id, video.id])"
                     class="block bg-gray-50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 opacity-75"
                 >
                     <div class="flex items-center justify-between">
@@ -370,13 +363,8 @@ const formatDate = (dateString) => {
                             </button>
                         </div>
 
-                        <div class="ml-4 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                            </svg>
-                        </div>
                     </div>
-                </Link>
+                </div>
             </div>
         </div>
 
