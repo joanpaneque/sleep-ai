@@ -6,55 +6,113 @@ const form = useForm({
     name: '',
     description: '',
     intro: null,
-    remove_intro: false
+    remove_intro: false,
+    background_video: null,
+    remove_background_video: false,
+    frame_image: null,
+    remove_frame_image: false,
+    image_style_prompt: ''
 })
 
+// Control de visibilidad de secciones
+const showIntroSection = ref(false)
+const showBackgroundSection = ref(false)
+const showFrameSection = ref(false)
+const showStylePromptSection = ref(false)
+
 const introFile = ref(null)
-const isDragOver = ref(false)
+const backgroundVideoFile = ref(null)
+const frameImageFile = ref(null)
+const isDragOverIntro = ref(false)
+const isDragOverBackground = ref(false)
+const isDragOverFrame = ref(false)
 const videoPreviewUrl = ref(null)
+const backgroundPreviewUrl = ref(false)
+const imagePreviewUrl = ref(null)
 
 // Extensiones de video permitidas
 const allowedVideoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mpeg', 'mpg', 'm4v', 'webm', 'mkv']
-const maxFileSize = 512 * 1024 * 1024 // 512MB en bytes
+// Extensiones de imagen permitidas
+const allowedImageExtensions = ['jpeg', 'jpg', 'png', 'gif', 'webp']
+const maxVideoFileSize = 512 * 1024 * 1024 // 512MB en bytes
+const maxImageFileSize = 50 * 1024 * 1024 // 50MB en bytes
 
 const submit = () => {
-    // Transform form data to include the file
+    // Transform form data to include the files
     form.transform((data) => ({
         ...data,
         intro: introFile.value,
-        remove_intro: form.remove_intro
+        remove_intro: form.remove_intro,
+        background_video: backgroundVideoFile.value,
+        remove_background_video: form.remove_background_video,
+        frame_image: frameImageFile.value,
+        remove_frame_image: form.remove_frame_image
     })).post(route('channels.store'), {
         onSuccess: () => {
             form.reset()
             introFile.value = null
+            backgroundVideoFile.value = null
+            frameImageFile.value = null
             videoPreviewUrl.value = null
+            backgroundPreviewUrl.value = null
+            imagePreviewUrl.value = null
+            // Reset checkboxes
+            showIntroSection.value = false
+            showBackgroundSection.value = false
+            showFrameSection.value = false
+            showStylePromptSection.value = false
         }
     })
 }
 
-// Manejo de archivos
-const handleFileChange = (event) => {
+// Función para limpiar archivos cuando se desmarca el checkbox
+const toggleIntroSection = () => {
+    if (!showIntroSection.value) {
+        removeIntroFile()
+    }
+}
+
+const toggleBackgroundSection = () => {
+    if (!showBackgroundSection.value) {
+        removeBackgroundVideoFile()
+    }
+}
+
+const toggleFrameSection = () => {
+    if (!showFrameSection.value) {
+        removeFrameImageFile()
+    }
+}
+
+const toggleStylePromptSection = () => {
+    if (!showStylePromptSection.value) {
+        form.image_style_prompt = ''
+    }
+}
+
+// Manejo de archivos para intro
+const handleIntroFileChange = (event) => {
     const file = event.target.files[0]
     setIntroFile(file)
 }
 
-const handleDrop = (event) => {
+const handleIntroDrop = (event) => {
     event.preventDefault()
-    isDragOver.value = false
+    isDragOverIntro.value = false
     const file = event.dataTransfer.files[0]
     setIntroFile(file)
 }
 
-const handleDragOver = (event) => {
+const handleIntroDragOver = (event) => {
     event.preventDefault()
-    isDragOver.value = true
+    isDragOverIntro.value = true
 }
 
-const handleDragLeave = () => {
-    isDragOver.value = false
+const handleIntroDragLeave = () => {
+    isDragOverIntro.value = false
 }
 
-const triggerFileInput = () => {
+const triggerIntroFileInput = () => {
     document.getElementById('intro-file-input').click()
 }
 
@@ -69,14 +127,14 @@ const setIntroFile = (file) => {
     }
 
     // Validar tamaño
-    if (file.size > maxFileSize) {
+    if (file.size > maxVideoFileSize) {
         alert('El archivo es demasiado grande. Tamaño máximo: 512MB')
         return
     }
 
     introFile.value = file
     form.intro = file
-    form.remove_intro = false // Reset remove flag when new file is selected
+    form.remove_intro = false
 
     // Crear URL de preview
     if (videoPreviewUrl.value) {
@@ -92,6 +150,132 @@ const removeIntroFile = () => {
     if (videoPreviewUrl.value) {
         URL.revokeObjectURL(videoPreviewUrl.value)
         videoPreviewUrl.value = null
+    }
+}
+
+// Manejo de archivos para background video
+const handleBackgroundFileChange = (event) => {
+    const file = event.target.files[0]
+    setBackgroundVideoFile(file)
+}
+
+const handleBackgroundDrop = (event) => {
+    event.preventDefault()
+    isDragOverBackground.value = false
+    const file = event.dataTransfer.files[0]
+    setBackgroundVideoFile(file)
+}
+
+const handleBackgroundDragOver = (event) => {
+    event.preventDefault()
+    isDragOverBackground.value = true
+}
+
+const handleBackgroundDragLeave = () => {
+    isDragOverBackground.value = false
+}
+
+const triggerBackgroundFileInput = () => {
+    document.getElementById('background-file-input').click()
+}
+
+const setBackgroundVideoFile = (file) => {
+    if (!file) return
+
+    // Validar extensión
+    const extension = file.name.split('.').pop().toLowerCase()
+    if (!allowedVideoExtensions.includes(extension)) {
+        alert(`Formato de archivo no válido. Formatos permitidos: ${allowedVideoExtensions.join(', ')}`)
+        return
+    }
+
+    // Validar tamaño
+    if (file.size > maxVideoFileSize) {
+        alert('El archivo es demasiado grande. Tamaño máximo: 512MB')
+        return
+    }
+
+    backgroundVideoFile.value = file
+    form.background_video = file
+    form.remove_background_video = false
+
+    // Crear URL de preview
+    if (backgroundPreviewUrl.value) {
+        URL.revokeObjectURL(backgroundPreviewUrl.value)
+    }
+    backgroundPreviewUrl.value = URL.createObjectURL(file)
+}
+
+const removeBackgroundVideoFile = () => {
+    backgroundVideoFile.value = null
+    form.background_video = null
+    form.remove_background_video = true
+    if (backgroundPreviewUrl.value) {
+        URL.revokeObjectURL(backgroundPreviewUrl.value)
+        backgroundPreviewUrl.value = null
+    }
+}
+
+// Manejo de archivos para frame image
+const handleFrameFileChange = (event) => {
+    const file = event.target.files[0]
+    setFrameImageFile(file)
+}
+
+const handleFrameDrop = (event) => {
+    event.preventDefault()
+    isDragOverFrame.value = false
+    const file = event.dataTransfer.files[0]
+    setFrameImageFile(file)
+}
+
+const handleFrameDragOver = (event) => {
+    event.preventDefault()
+    isDragOverFrame.value = true
+}
+
+const handleFrameDragLeave = () => {
+    isDragOverFrame.value = false
+}
+
+const triggerFrameFileInput = () => {
+    document.getElementById('frame-file-input').click()
+}
+
+const setFrameImageFile = (file) => {
+    if (!file) return
+
+    // Validar extensión
+    const extension = file.name.split('.').pop().toLowerCase()
+    if (!allowedImageExtensions.includes(extension)) {
+        alert(`Formato de archivo no válido. Formatos permitidos: ${allowedImageExtensions.join(', ')}`)
+        return
+    }
+
+    // Validar tamaño
+    if (file.size > maxImageFileSize) {
+        alert('El archivo es demasiado grande. Tamaño máximo: 50MB')
+        return
+    }
+
+    frameImageFile.value = file
+    form.frame_image = file
+    form.remove_frame_image = false
+
+    // Crear URL de preview
+    if (imagePreviewUrl.value) {
+        URL.revokeObjectURL(imagePreviewUrl.value)
+    }
+    imagePreviewUrl.value = URL.createObjectURL(file)
+}
+
+const removeFrameImageFile = () => {
+    frameImageFile.value = null
+    form.frame_image = null
+    form.remove_frame_image = true
+    if (imagePreviewUrl.value) {
+        URL.revokeObjectURL(imagePreviewUrl.value)
+        imagePreviewUrl.value = null
     }
 }
 
@@ -166,24 +350,40 @@ const formatFileSize = (bytes) => {
                         </p>
                     </div>
 
-                    <!-- Campo de archivo para la intro -->
+                    <!-- Checkbox para Video Intro -->
                     <div>
+                        <div class="flex items-center">
+                            <input
+                                id="enable-intro"
+                                v-model="showIntroSection"
+                                @change="toggleIntroSection"
+                                type="checkbox"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            >
+                            <label for="enable-intro" class="ml-2 block text-sm font-medium text-gray-700">
+                                Usar una intro personalizada
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Campo de archivo para la intro -->
+                    <div v-if="showIntroSection">
                         <label class="block text-sm font-medium text-gray-700 mb-1">
                             Video Intro del Canal
                         </label>
 
-                        <!-- Zona de drag & drop -->
+                        <!-- Zona de drag & drop para intro -->
                         <div
                             class="relative border-2 border-dashed rounded-lg p-6 transition-colors duration-200"
                             :class="{
-                                'border-blue-400 bg-blue-50': isDragOver,
-                                'border-gray-300 hover:border-gray-400': !isDragOver,
+                                'border-blue-400 bg-blue-50': isDragOverIntro,
+                                'border-gray-300 hover:border-gray-400': !isDragOverIntro,
                                 'border-red-300': form.errors.intro
                             }"
-                            @dragover.prevent="handleDragOver"
-                            @dragleave.prevent="handleDragLeave"
-                            @drop.prevent="handleDrop"
-                            @click="triggerFileInput"
+                            @dragover.prevent="handleIntroDragOver"
+                            @dragleave.prevent="handleIntroDragLeave"
+                            @drop.prevent="handleIntroDrop"
+                            @click="triggerIntroFileInput"
                         >
                             <!-- Input oculto -->
                             <input
@@ -191,7 +391,7 @@ const formatFileSize = (bytes) => {
                                 type="file"
                                 accept="video/*"
                                 class="hidden"
-                                @change="handleFileChange"
+                                @change="handleIntroFileChange"
                             >
 
                             <!-- Contenido de la zona de drop -->
@@ -200,7 +400,7 @@ const formatFileSize = (bytes) => {
                                     <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                                 <div class="mt-4">
-                                    <p class="text-lg text-gray-600">Arrastra y suelta tu video aquí</p>
+                                    <p class="text-lg text-gray-600">Arrastra y suelta el video intro aquí</p>
                                     <p class="text-sm text-gray-500 mt-1">o haz clic para seleccionar</p>
                                     <p class="text-xs text-gray-400 mt-2">
                                         Formatos: {{ allowedVideoExtensions.join(', ').toUpperCase() }}
@@ -251,6 +451,246 @@ const formatFileSize = (bytes) => {
 
                         <p v-if="form.errors.intro" class="mt-1 text-sm text-red-600">
                             {{ form.errors.intro }}
+                        </p>
+                    </div>
+
+                    <!-- Checkbox para Video de Fondo -->
+                    <div>
+                        <div class="flex items-center">
+                            <input
+                                id="enable-background"
+                                v-model="showBackgroundSection"
+                                @change="toggleBackgroundSection"
+                                type="checkbox"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            >
+                            <label for="enable-background" class="ml-2 block text-sm font-medium text-gray-700">
+                                Usar un video de fondo personalizado
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Campo de archivo para el video de fondo -->
+                    <div v-if="showBackgroundSection">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Video de Fondo
+                        </label>
+
+                        <!-- Zona de drag & drop para background video -->
+                        <div
+                            class="relative border-2 border-dashed rounded-lg p-6 transition-colors duration-200"
+                            :class="{
+                                'border-blue-400 bg-blue-50': isDragOverBackground,
+                                'border-gray-300 hover:border-gray-400': !isDragOverBackground,
+                                'border-red-300': form.errors.background_video
+                            }"
+                            @dragover.prevent="handleBackgroundDragOver"
+                            @dragleave.prevent="handleBackgroundDragLeave"
+                            @drop.prevent="handleBackgroundDrop"
+                            @click="triggerBackgroundFileInput"
+                        >
+                            <!-- Input oculto -->
+                            <input
+                                id="background-file-input"
+                                type="file"
+                                accept="video/*"
+                                class="hidden"
+                                @change="handleBackgroundFileChange"
+                            >
+
+                            <!-- Contenido de la zona de drop -->
+                            <div v-if="!backgroundVideoFile" class="text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <div class="mt-4">
+                                    <p class="text-lg text-gray-600">Arrastra y suelta el video de fondo aquí</p>
+                                    <p class="text-sm text-gray-500 mt-1">o haz clic para seleccionar</p>
+                                    <p class="text-xs text-gray-400 mt-2">
+                                        Formatos: {{ allowedVideoExtensions.join(', ').toUpperCase() }}
+                                    </p>
+                                    <p class="text-xs text-gray-400">Tamaño máximo: 512MB</p>
+                                </div>
+                            </div>
+
+                            <!-- Preview del archivo seleccionado -->
+                            <div v-else class="space-y-4">
+                                <!-- Video preview -->
+                                <div class="flex justify-center">
+                                    <video
+                                        v-if="backgroundPreviewUrl"
+                                        :src="backgroundPreviewUrl"
+                                        controls
+                                        class="max-w-full h-48 rounded-lg shadow-sm"
+                                    >
+                                        Tu navegador no soporta el elemento de video.
+                                    </video>
+                                </div>
+
+                                <!-- Información del archivo -->
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <svg class="h-8 w-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                                            </svg>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">{{ backgroundVideoFile.name }}</p>
+                                                <p class="text-xs text-gray-500">{{ formatFileSize(backgroundVideoFile.size) }}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            @click.stop="removeBackgroundVideoFile"
+                                            class="text-red-500 hover:text-red-700 p-1"
+                                        >
+                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p v-if="form.errors.background_video" class="mt-1 text-sm text-red-600">
+                            {{ form.errors.background_video }}
+                        </p>
+                    </div>
+
+                    <!-- Checkbox para Imagen del Marco -->
+                    <div>
+                        <div class="flex items-center">
+                            <input
+                                id="enable-frame"
+                                v-model="showFrameSection"
+                                @change="toggleFrameSection"
+                                type="checkbox"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            >
+                            <label for="enable-frame" class="ml-2 block text-sm font-medium text-gray-700">
+                                Usar una imagen de marco personalizada
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Campo de archivo para la imagen del marco -->
+                    <div v-if="showFrameSection">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Imagen del Marco
+                        </label>
+
+                        <!-- Zona de drag & drop para frame image -->
+                        <div
+                            class="relative border-2 border-dashed rounded-lg p-6 transition-colors duration-200"
+                            :class="{
+                                'border-blue-400 bg-blue-50': isDragOverFrame,
+                                'border-gray-300 hover:border-gray-400': !isDragOverFrame,
+                                'border-red-300': form.errors.frame_image
+                            }"
+                            @dragover.prevent="handleFrameDragOver"
+                            @dragleave.prevent="handleFrameDragLeave"
+                            @drop.prevent="handleFrameDrop"
+                            @click="triggerFrameFileInput"
+                        >
+                            <!-- Input oculto -->
+                            <input
+                                id="frame-file-input"
+                                type="file"
+                                accept="image/*"
+                                class="hidden"
+                                @change="handleFrameFileChange"
+                            >
+
+                            <!-- Contenido de la zona de drop -->
+                            <div v-if="!frameImageFile" class="text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <div class="mt-4">
+                                    <p class="text-lg text-gray-600">Arrastra y suelta la imagen del marco aquí</p>
+                                    <p class="text-sm text-gray-500 mt-1">o haz clic para seleccionar</p>
+                                    <p class="text-xs text-gray-400 mt-2">
+                                        Formatos: {{ allowedImageExtensions.join(', ').toUpperCase() }}
+                                    </p>
+                                    <p class="text-xs text-gray-400">Tamaño máximo: 50MB</p>
+                                </div>
+                            </div>
+
+                            <!-- Preview del archivo seleccionado -->
+                            <div v-else class="space-y-4">
+                                <!-- Image preview -->
+                                <div class="flex justify-center">
+                                    <img
+                                        v-if="imagePreviewUrl"
+                                        :src="imagePreviewUrl"
+                                        class="max-w-full h-48 rounded-lg shadow-sm object-contain"
+                                        alt="Preview de la imagen del marco"
+                                    >
+                                </div>
+
+                                <!-- Información del archivo -->
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3">
+                                            <svg class="h-8 w-8 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                                            </svg>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900">{{ frameImageFile.name }}</p>
+                                                <p class="text-xs text-gray-500">{{ formatFileSize(frameImageFile.size) }}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            @click.stop="removeFrameImageFile"
+                                            class="text-red-500 hover:text-red-700 p-1"
+                                        >
+                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p v-if="form.errors.frame_image" class="mt-1 text-sm text-red-600">
+                            {{ form.errors.frame_image }}
+                        </p>
+                    </div>
+
+                    <!-- Checkbox para Prompt de Estilo -->
+                    <div>
+                        <div class="flex items-center">
+                            <input
+                                id="enable-style-prompt"
+                                v-model="showStylePromptSection"
+                                @change="toggleStylePromptSection"
+                                type="checkbox"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            >
+                            <label for="enable-style-prompt" class="ml-2 block text-sm font-medium text-gray-700">
+                                Personalizar el estilo de las imágenes generadas
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Campo de texto para el prompt de estilo de imagen -->
+                    <div v-if="showStylePromptSection">
+                        <label for="image_style_prompt" class="block text-sm font-medium text-gray-700 mb-1">
+                            Prompt de Estilo de Imagen
+                        </label>
+                        <textarea
+                            id="image_style_prompt"
+                            v-model="form.image_style_prompt"
+                            rows="3"
+                            class="block text-black w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Describe el estilo visual que quieres para las imágenes generadas (ej: estilo anime, realista, cartoon, etc.)"
+                        ></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Máximo 1000 caracteres</p>
+                        <p v-if="form.errors.image_style_prompt" class="mt-1 text-sm text-red-600">
+                            {{ form.errors.image_style_prompt }}
                         </p>
                     </div>
 
