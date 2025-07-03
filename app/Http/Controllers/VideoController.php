@@ -7,6 +7,7 @@ use App\Models\Video;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Services\N8NService;
+use Illuminate\Support\Facades\Log;
 
 class VideoController extends Controller
 {
@@ -80,15 +81,22 @@ class VideoController extends Controller
     }
     public function queueVideo(Video $video)
     {
+        Log::info('Queueing video', ['video' => $video]);
         if (!$video->is_deleted) {
+            Log::info('Video is not deleted, redirecting to channel show');
             return redirect()->route('channels.show', $video->channel_id);
         }
 
         $video->status = 'pending';
         $video->save();
 
+        Log::info('Status updated to pending');
+
+
+        Log::info('Calling webhook');
         N8NService::callWebhook($video->load('channel'));
 
+        Log::info('Redirecting to channel show');
         return redirect()->route('channels.show', $video->channel_id);
     }
 
