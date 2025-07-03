@@ -1,5 +1,6 @@
 <script setup>
 import { Link, usePoll, router } from '@inertiajs/vue3'
+import { ref } from 'vue'
 
 const props = defineProps({
     channel: Object
@@ -7,6 +8,36 @@ const props = defineProps({
 
 const editChannel = () => {
     router.get(route('channels.edit', props.channel.id))
+}
+
+const softDeleteVideo = (video) => {
+    router.post(route('channels.videos.soft-delete', video.id))
+}
+
+const queueVideo = (video) => {
+    router.post(route('channels.videos.queue', video.id))
+}
+
+// Modal state
+const showDeleteModal = ref(false)
+const videoToDelete = ref(null)
+
+const confirmDelete = (video) => {
+    videoToDelete.value = video
+    showDeleteModal.value = true
+}
+
+const handleDelete = () => {
+    if (videoToDelete.value) {
+        softDeleteVideo(videoToDelete.value)
+        showDeleteModal.value = false
+        videoToDelete.value = null
+    }
+}
+
+const cancelDelete = () => {
+    showDeleteModal.value = false
+    videoToDelete.value = null
 }
 
 usePoll(2000);
@@ -185,7 +216,7 @@ const formatDate = (dateString) => {
             </div>
         </div>
 
-        <!-- Completed Videos Section -->
+        <!-- Active Videos Section -->
         <div class="mb-12">
             <h2 class="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
                 <svg class="w-6 h-6 text-indigo-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,7 +227,7 @@ const formatDate = (dateString) => {
             </h2>
             <div class="space-y-4">
                 <Link
-                    v-for="video in props.channel.videos"
+                    v-for="video in props.channel.videos.filter(v => !v.is_deleted)"
                     :key="video.id"
                     :href="route('channels.videos.show', [channel.id, video.id])"
                     class="block bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-indigo-50"
@@ -243,9 +274,10 @@ const formatDate = (dateString) => {
                             </div>
                         </div>
 
-                        <!-- Video Link -->
-                        <div v-if="video.url" class="ml-4 flex-shrink-0 flex space-x-2">
+                        <!-- Video Actions -->
+                        <div class="ml-4 flex-shrink-0 flex space-x-2">
                             <a
+                                v-if="video.url"
                                 :href="video.url"
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -259,6 +291,7 @@ const formatDate = (dateString) => {
                                 Ver Video
                             </a>
                             <a
+                                v-if="video.url"
                                 :href="`https://sleepai.online/storage/channels/${channel.id}/${video.id}/timestamps.txt`"
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -270,6 +303,16 @@ const formatDate = (dateString) => {
                                 </svg>
                                 Ver Timestamps
                             </a>
+                            <button
+                                v-if="video.url || video.status === 'failed' || video.status === 'stopped'"
+                                @click.stop="confirmDelete(video)"
+                                class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Eliminar
+                            </button>
                         </div>
 
                         <div class="ml-4 p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors">
@@ -279,6 +322,92 @@ const formatDate = (dateString) => {
                         </div>
                     </div>
                 </Link>
+            </div>
+        </div>
+
+        <!-- Deleted Videos Section -->
+        <div v-if="props.channel.videos.filter(v => v.is_deleted).length > 0" class="mb-12">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-6 flex items-center">
+                <svg class="w-6 h-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Videos Eliminados
+            </h2>
+            <div class="space-y-4">
+                <Link
+                    v-for="video in props.channel.videos.filter(v => v.is_deleted)"
+                    :key="video.id"
+                    :href="route('channels.videos.show', [channel.id, video.id])"
+                    class="block bg-gray-50 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 opacity-75"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-sm text-gray-500">ID: {{ video.id }}</span>
+                                <span class="text-sm text-gray-500">{{ video.duration }}</span>
+                                <span class="px-2 py-1 rounded-full text-xs font-medium text-red-600 bg-red-100">
+                                    Eliminado
+                                </span>
+                            </div>
+                            <h3 class="font-medium text-gray-700 mt-2 text-lg">{{ video.title }}</h3>
+                            <div class="mt-2 flex items-center text-sm text-gray-500">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{{ formatDate(video.created_at) }}</span>
+                            </div>
+                        </div>
+
+                        <div class="ml-4 flex-shrink-0 flex space-x-2">
+                            <button
+                                @click.stop="queueVideo(video)"
+                                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Volver a procesar
+                            </button>
+                        </div>
+
+                        <div class="ml-4 p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </div>
+                    </div>
+                </Link>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <div class="flex items-center mb-4">
+                    <svg class="w-8 h-8 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirmar Eliminación</h3>
+                </div>
+                <p class="text-gray-600 mb-6">
+                    ¿Estás seguro de que quieres eliminar el video "<strong>{{ videoToDelete?.title }}</strong>"?
+                    <br><br>
+                    <span class="text-red-600 font-medium">Se borrarán todos los archivos de video asociados. Esta acción no se puede deshacer.</span>
+                </p>
+                <div class="flex justify-end space-x-3">
+                    <button
+                        @click="cancelDelete"
+                        class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        @click="handleDelete"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        Eliminar Video
+                    </button>
+                </div>
             </div>
         </div>
 

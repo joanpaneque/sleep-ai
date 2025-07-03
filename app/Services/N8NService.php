@@ -61,12 +61,12 @@ class N8NService {
         // get video from database with channel
         $video = Video::with('channel')->find($video->id);
 
-        $response = self::callWebhook($video);
+        $response = self::callWebhook($video->toArray());
         return ['video_id' => $video->id, 'server_response' => $response];
     }
 
 
-    private static function callWebhook($video)
+    public static function callWebhook($video)
     {
         if (self::isVideoRendering()) {
             return false;
