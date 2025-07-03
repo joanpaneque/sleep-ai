@@ -11,11 +11,15 @@ const editChannel = () => {
 }
 
 const softDeleteVideo = (video) => {
-    router.post(route('channels.videos.soft-delete', video.id))
+    router.post(route('channels.videos.soft-delete', video.id), {}, {
+        preserveScroll: true
+    })
 }
 
 const queueVideo = (video) => {
-    router.post(route('channels.videos.queue', video.id))
+    router.post(route('channels.videos.queue', video.id), {}, {
+        preserveScroll: true
+    })
 }
 
 // Modal state

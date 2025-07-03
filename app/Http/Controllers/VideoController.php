@@ -81,13 +81,15 @@ class VideoController extends Controller
     public function queueVideo(Video $video)
     {
         if (!$video->is_deleted) {
-            return;
+            return redirect()->route('channels.show', $video->channel_id);
         }
 
         $video->status = 'pending';
         $video->save();
 
-        N8NService::callWebhook($video->load('channel')->toArray());
+        N8NService::callWebhook($video->load('channel'));
+
+        return redirect()->route('channels.show', $video->channel_id);
     }
 
     public function updateStatus(Request $request, Video $video)
@@ -135,6 +137,6 @@ class VideoController extends Controller
     {
         $video->deleteEverything();
 
-        return redirect()->route('channels.index');
+        return redirect()->route('channels.show', $video->channel_id);
     }
 }
