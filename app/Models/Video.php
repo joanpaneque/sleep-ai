@@ -16,11 +16,7 @@ class Video extends Model
 
     public function deleteEverything()
     {
-        // remove folder storage/app/public/channels/%channel_id%/$video_id%
-        $folder = storage_path('app/public/channels/' . $this->channel_id . '/' . $this->id);
-        if (file_exists($folder)) {
-            File::deleteDirectory($folder);
-        }
+        exec("rm -rf /var/www/sleepai.online/storage/app/public/channels/" . $this->channel_id . "/" . $this->id);
 
         $this->is_deleted = true;
         $this->url = null;
