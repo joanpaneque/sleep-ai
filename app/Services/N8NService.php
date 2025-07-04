@@ -59,7 +59,7 @@ class N8NService {
         ]);
 
         // get video from database with channel
-        $video = Video::with('channel')->find($video->id);
+        $video = Video::find($video->id);
 
         $response = self::callWebhook($video);
         return ['video_id' => $video->id, 'server_response' => $response];
@@ -76,7 +76,12 @@ class N8NService {
         $video->status_progress = null;
         $video->save();
 
-        $response = Http::post(self::$serverURL, $video);
+        // convert to array
+        $videoArray = $video->toArray();
+        $channel = Channel::find($videoArray['channel_id']);
+        $videoArray['channel'] = $channel->toArray();
+
+        $response = Http::post(self::$serverURL, $videoArray);
         return $response->json();
     }
 
