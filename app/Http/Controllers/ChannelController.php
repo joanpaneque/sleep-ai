@@ -126,6 +126,8 @@ class ChannelController extends Controller
             'frame_image' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp|max:51200',
             'remove_frame_image' => 'nullable|boolean',
             'image_style_prompt' => 'nullable|string|max:1000',
+            'thumbnail' => 'nullable|string',
+            'thumbnail_image_prompt' => 'nullable|string|max:1000',
         ], [
             'name.required' => 'El nombre es requerido',
             'name.string' => 'El nombre debe ser una cadena de texto',
@@ -144,6 +146,8 @@ class ChannelController extends Controller
             'frame_image.max' => 'La imagen del marco no puede tener más de 50MB',
             'image_style_prompt.string' => 'El prompt de estilo debe ser texto',
             'image_style_prompt.max' => 'El prompt de estilo no puede tener más de 1000 caracteres',
+            'thumbnail_image_prompt.string' => 'El prompt de imagen del thumbnail debe ser texto',
+            'thumbnail_image_prompt.max' => 'El prompt de imagen del thumbnail no puede tener más de 1000 caracteres',
         ]);
 
         Log::info('Validation passed');
@@ -151,6 +155,7 @@ class ChannelController extends Controller
         $channelName = $request->name;
         $channelDescription = $request->description;
         $imageStylePrompt = $request->image_style_prompt;
+        $thumbnailImagePrompt = $request->thumbnail_image_prompt;
 
         // Manejo más robusto del archivo intro
         $introName = null;
@@ -284,13 +289,58 @@ class ChannelController extends Controller
             $frameImageName = null;
         }
 
+        // Manejo del thumbnail HTML
+        $thumbnailTemplateName = null;
+
+        Log::info('Thumbnail field check:', [
+            'has_thumbnail' => $request->has('thumbnail'),
+            'filled_thumbnail' => $request->filled('thumbnail'),
+            'thumbnail_value' => $request->thumbnail,
+            'thumbnail_length' => $request->thumbnail ? strlen($request->thumbnail) : 0
+        ]);
+
+        if ($request->filled('thumbnail')) {
+            Log::info('Thumbnail HTML content detected');
+            $thumbnailContent = $request->thumbnail;
+
+            // Generar nombre único para el archivo
+            $thumbnailTemplateName = time() . '_' . uniqid() . '.html';
+            Log::info('Generated thumbnail template filename:', ['filename' => $thumbnailTemplateName]);
+
+            try {
+                // Crear el directorio si no existe
+                if (!Storage::disk('public')->exists('thumbnail_templates')) {
+                    Storage::disk('public')->makeDirectory('thumbnail_templates');
+                }
+
+                // Guardar el contenido HTML en el archivo
+                $saved = Storage::disk('public')->put('thumbnail_templates/' . $thumbnailTemplateName, $thumbnailContent);
+                Log::info('Thumbnail template storage result:', ['saved' => $saved]);
+
+                if (!$saved) {
+                    Log::error('Failed to save thumbnail template file');
+                    return back()->withErrors(['thumbnail' => 'Error al guardar el template de thumbnail']);
+                }
+
+                // Verificar que el archivo existe
+                $exists = Storage::disk('public')->exists('thumbnail_templates/' . $thumbnailTemplateName);
+                Log::info('Thumbnail template file exists check:', ['exists' => $exists]);
+
+            } catch (\Exception $e) {
+                Log::error('Exception saving thumbnail template file:', ['error' => $e->getMessage()]);
+                return back()->withErrors(['thumbnail' => 'Error al guardar el template de thumbnail: ' . $e->getMessage()]);
+            }
+        }
+
         Log::info('Creating channel with data:', [
             'name' => $channelName,
             'description' => $channelDescription,
             'intro' => $introName,
             'background_video' => $backgroundVideoName,
             'frame_image' => $frameImageName,
-            'image_style_prompt' => $imageStylePrompt
+            'image_style_prompt' => $imageStylePrompt,
+            'thumbnail_template' => $thumbnailTemplateName,
+            'thumbnail_image_prompt' => $thumbnailImagePrompt
         ]);
 
         $channel = Channel::create([
@@ -299,10 +349,16 @@ class ChannelController extends Controller
             'intro' => $introName,
             'background_video' => $backgroundVideoName,
             'frame_image' => $frameImageName,
-            'image_style_prompt' => $imageStylePrompt
+            'image_style_prompt' => $imageStylePrompt,
+            'thumbnail_template' => $thumbnailTemplateName,
+            'thumbnail_image_prompt' => $thumbnailImagePrompt
         ]);
 
-        Log::info('Channel created successfully:', ['id' => $channel->id]);
+        Log::info('Channel created successfully:', [
+            'id' => $channel->id,
+            'thumbnail_template_saved' => $channel->thumbnail_template,
+            'thumbnail_template_variable' => $thumbnailTemplateName
+        ]);
 
         return redirect()->route('channels.index');
     }
@@ -326,8 +382,20 @@ class ChannelController extends Controller
     {
         $channel = Channel::findOrFail($id);
 
+        // Leer el contenido del thumbnail template si existe
+        $thumbnailContent = null;
+        if ($channel->thumbnail_template && Storage::disk('public')->exists('thumbnail_templates/' . $channel->thumbnail_template)) {
+            try {
+                $thumbnailContent = Storage::disk('public')->get('thumbnail_templates/' . $channel->thumbnail_template);
+                Log::info('Thumbnail template content loaded for edit:', ['filename' => $channel->thumbnail_template]);
+            } catch (\Exception $e) {
+                Log::error('Error reading thumbnail template file:', ['error' => $e->getMessage(), 'filename' => $channel->thumbnail_template]);
+            }
+        }
+
         return Inertia::render('Channels/Edit', [
-            'channel' => $channel
+            'channel' => $channel,
+            'thumbnail' => $thumbnailContent
         ]);
     }
 
@@ -354,6 +422,8 @@ class ChannelController extends Controller
             'frame_image' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp|max:51200',
             'remove_frame_image' => 'nullable|boolean',
             'image_style_prompt' => 'nullable|string|max:1000',
+            'thumbnail' => 'nullable|string',
+            'thumbnail_image_prompt' => 'nullable|string|max:1000',
         ], [
             'name.required' => 'El nombre es requerido',
             'name.string' => 'El nombre debe ser una cadena de texto',
@@ -372,6 +442,8 @@ class ChannelController extends Controller
             'frame_image.max' => 'La imagen del marco no puede tener más de 50MB',
             'image_style_prompt.string' => 'El prompt de estilo debe ser texto',
             'image_style_prompt.max' => 'El prompt de estilo no puede tener más de 1000 caracteres',
+            'thumbnail_image_prompt.string' => 'El prompt de imagen del thumbnail debe ser texto',
+            'thumbnail_image_prompt.max' => 'El prompt de imagen del thumbnail no puede tener más de 1000 caracteres',
         ]);
 
         Log::info('Validation passed');
@@ -379,9 +451,11 @@ class ChannelController extends Controller
         $channelName = $request->name;
         $channelDescription = $request->description;
         $imageStylePrompt = $request->image_style_prompt;
+        $thumbnailImagePrompt = $request->thumbnail_image_prompt;
         $introName = $channel->intro; // Mantener el archivo actual por defecto
         $backgroundVideoName = $channel->background_video; // Mantener el archivo actual por defecto
         $frameImageName = $channel->frame_image; // Mantener el archivo actual por defecto
+        $thumbnailTemplateName = $channel->thumbnail_template; // Mantener el archivo actual por defecto
 
         // Manejo del archivo de intro (opcional en update)
         if ($request->remove_intro) {
@@ -515,13 +589,68 @@ class ChannelController extends Controller
             }
         }
 
+                // Manejo del thumbnail HTML
+        if ($request->has('thumbnail')) {
+            if ($request->filled('thumbnail')) {
+                Log::info('Thumbnail HTML content detected for update');
+                $thumbnailContent = $request->thumbnail;
+
+                // Eliminar el archivo anterior si existe
+                if ($channel->thumbnail_template && Storage::disk('public')->exists('thumbnail_templates/' . $channel->thumbnail_template)) {
+                    Storage::disk('public')->delete('thumbnail_templates/' . $channel->thumbnail_template);
+                    Log::info('Old thumbnail template file deleted:', ['filename' => $channel->thumbnail_template]);
+                }
+
+                // Generar nombre único para el archivo
+                $thumbnailTemplateName = time() . '_' . uniqid() . '.html';
+                Log::info('Generated thumbnail template filename:', ['filename' => $thumbnailTemplateName]);
+
+                try {
+                    // Crear el directorio si no existe
+                    if (!Storage::disk('public')->exists('thumbnail_templates')) {
+                        Storage::disk('public')->makeDirectory('thumbnail_templates');
+                    }
+
+                    // Guardar el contenido HTML en el archivo
+                    $saved = Storage::disk('public')->put('thumbnail_templates/' . $thumbnailTemplateName, $thumbnailContent);
+                    Log::info('Thumbnail template storage result:', ['saved' => $saved]);
+
+                    if (!$saved) {
+                        Log::error('Failed to save thumbnail template file');
+                        return back()->withErrors(['thumbnail' => 'Error al guardar el template de thumbnail']);
+                    }
+
+                    // Verificar que el archivo existe
+                    $exists = Storage::disk('public')->exists('thumbnail_templates/' . $thumbnailTemplateName);
+                    Log::info('Thumbnail template file exists check:', ['exists' => $exists]);
+
+                } catch (\Exception $e) {
+                    Log::error('Exception saving thumbnail template file:', ['error' => $e->getMessage()]);
+                    return back()->withErrors(['thumbnail' => 'Error al guardar el template de thumbnail: ' . $e->getMessage()]);
+                }
+            } else {
+                // Si el campo thumbnail está presente pero vacío, eliminar el template
+                Log::info('Empty thumbnail field detected, removing template');
+
+                // Eliminar el archivo anterior si existe
+                if ($channel->thumbnail_template && Storage::disk('public')->exists('thumbnail_templates/' . $channel->thumbnail_template)) {
+                    Storage::disk('public')->delete('thumbnail_templates/' . $channel->thumbnail_template);
+                    Log::info('Thumbnail template file deleted:', ['filename' => $channel->thumbnail_template]);
+                }
+
+                $thumbnailTemplateName = null;
+            }
+        }
+
         Log::info('Updating channel with data:', [
             'name' => $channelName,
             'description' => $channelDescription,
             'intro' => $introName,
             'background_video' => $backgroundVideoName,
             'frame_image' => $frameImageName,
-            'image_style_prompt' => $imageStylePrompt
+            'image_style_prompt' => $imageStylePrompt,
+            'thumbnail_template' => $thumbnailTemplateName,
+            'thumbnail_image_prompt' => $thumbnailImagePrompt
         ]);
 
         $channel->update([
@@ -530,7 +659,9 @@ class ChannelController extends Controller
             'intro' => $introName,
             'background_video' => $backgroundVideoName,
             'frame_image' => $frameImageName,
-            'image_style_prompt' => $imageStylePrompt
+            'image_style_prompt' => $imageStylePrompt,
+            'thumbnail_template' => $thumbnailTemplateName,
+            'thumbnail_image_prompt' => $thumbnailImagePrompt
         ]);
 
         Log::info('Channel updated successfully:', ['id' => $channel->id]);

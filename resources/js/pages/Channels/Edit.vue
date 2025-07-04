@@ -3,7 +3,8 @@ import { useForm } from '@inertiajs/vue3'
 import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
-    channel: Object
+    channel: Object,
+    thumbnail: String
 })
 
 const form = useForm({
@@ -16,6 +17,8 @@ const form = useForm({
     frame_image: null,
     remove_frame_image: false,
     image_style_prompt: props.channel.image_style_prompt || '',
+    thumbnail: props.thumbnail || '',
+    thumbnail_image_prompt: props.channel.thumbnail_image_prompt || '',
     _method: 'PATCH'
 })
 
@@ -24,6 +27,8 @@ const showIntroSection = ref(!!props.channel.intro)
 const showBackgroundSection = ref(!!props.channel.background_video)
 const showFrameSection = ref(!!props.channel.frame_image)
 const showStylePromptSection = ref(!!props.channel.image_style_prompt)
+const showThumbnailSection = ref(!!props.thumbnail)
+const showThumbnailImagePromptSection = ref(!!props.channel.thumbnail_image_prompt)
 
 const introFile = ref(null)
 const backgroundVideoFile = ref(null)
@@ -102,6 +107,18 @@ const toggleFrameSection = () => {
 const toggleStylePromptSection = () => {
     if (!showStylePromptSection.value) {
         form.image_style_prompt = ''
+    }
+}
+
+const toggleThumbnailSection = () => {
+    if (!showThumbnailSection.value) {
+        form.thumbnail = ''
+    }
+}
+
+const toggleThumbnailImagePromptSection = () => {
+    if (!showThumbnailImagePromptSection.value) {
+        form.thumbnail_image_prompt = ''
     }
 }
 
@@ -822,6 +839,93 @@ const hasNewFrameFile = computed(() => {
                         <p class="text-xs text-gray-500 mt-1">Máximo 1000 caracteres</p>
                         <p v-if="form.errors.image_style_prompt" class="mt-1 text-sm text-red-600">
                             {{ form.errors.image_style_prompt }}
+                        </p>
+                    </div>
+
+                    <!-- Checkbox para Template de Thumbnail -->
+                    <div>
+                        <div class="flex items-center">
+                            <input
+                                id="enable-thumbnail"
+                                v-model="showThumbnailSection"
+                                @change="toggleThumbnailSection"
+                                type="checkbox"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            >
+                            <label for="enable-thumbnail" class="ml-2 block text-sm font-medium text-gray-700">
+                                Usar un template de thumbnail personalizado
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Campo de texto para el template de thumbnail -->
+                    <div v-if="showThumbnailSection">
+                        <label for="thumbnail" class="block text-sm font-medium text-gray-700 mb-1">
+                            Template de Thumbnail (HTML)
+                        </label>
+                        <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <h4 class="text-sm font-medium text-blue-800 mb-2">Variables disponibles:</h4>
+                            <div class="text-xs text-blue-700 space-y-1">
+                                <p><code class="bg-blue-100 px-1 rounded">%title%</code> - Título general</p>
+                                <p><code class="bg-blue-100 px-1 rounded">%subtitle%</code> - Subtítulo</p>
+                                <p><code class="bg-blue-100 px-1 rounded">%img_url%</code> - URL de la imagen</p>
+                            </div>
+                        </div>
+                        <textarea
+                            id="thumbnail"
+                            v-model="form.thumbnail"
+                            rows="8"
+                            class="block text-black w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                            placeholder="Pega aquí el código HTML del template de thumbnail..."
+                        ></textarea>
+                        <p class="text-xs text-gray-500 mt-1">Código HTML completo del template de thumbnail. Usa las variables mostradas arriba para contenido dinámico.</p>
+                        <p v-if="form.errors.thumbnail" class="mt-1 text-sm text-red-600">
+                            {{ form.errors.thumbnail }}
+                        </p>
+                    </div>
+
+                    <!-- Checkbox para Prompt de Imagen del Thumbnail -->
+                    <div>
+                        <div class="flex items-center">
+                            <input
+                                id="enable-thumbnail-image-prompt"
+                                v-model="showThumbnailImagePromptSection"
+                                @change="toggleThumbnailImagePromptSection"
+                                type="checkbox"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            >
+                            <label for="enable-thumbnail-image-prompt" class="ml-2 block text-sm font-medium text-gray-700">
+                                Usar prompt inteligente para imágenes de thumbnail
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Campo de texto para el prompt de imagen del thumbnail -->
+                    <div v-if="showThumbnailImagePromptSection">
+                        <label for="thumbnail_image_prompt" class="block text-sm font-medium text-gray-700 mb-1">
+                            Prompt Inteligente para Generación de Imágenes
+                        </label>
+                        <div class="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <h4 class="text-sm font-medium text-green-800 mb-2">Variables disponibles:</h4>
+                            <div class="text-xs text-green-700 space-y-1">
+                                <p><code class="bg-green-100 px-1 rounded">%video_title%</code> - Título del video específico</p>
+                            </div>
+                            <p class="text-xs text-green-600 mt-2">
+                                La IA usará este prompt para generar un prompt personalizado para cada video específico.
+                            </p>
+                        </div>
+                        <textarea
+                            id="thumbnail_image_prompt"
+                            v-model="form.thumbnail_image_prompt"
+                            rows="4"
+                            class="block text-black w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Ej: Genera una imagen cinematográfica basada en '%video_title%' con estilo moderno y colores vibrantes"
+                        ></textarea>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Máximo 1000 caracteres. Este prompt se enviará a la IA para que genere un prompt específico y personalizado para cada video individual, usando el título del video como contexto.
+                        </p>
+                        <p v-if="form.errors.thumbnail_image_prompt" class="mt-1 text-sm text-red-600">
+                            {{ form.errors.thumbnail_image_prompt }}
                         </p>
                     </div>
 
