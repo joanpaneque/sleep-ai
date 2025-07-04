@@ -107,6 +107,11 @@ class VideoController extends Controller
         $video->status_progress = $request->status_progress;
         $video->save();
 
+        if ($video->status_progress != null) {
+            $video->thumbnail = "https://sleepai.online/storage/channels/" . $video->channel_id . "/" . $video->id . "/thumbnail.png";
+            $video->save();
+        }
+
         if ($video->status == 'completed') {
             // save the video url
             $video->url = "https://sleepai.online/storage/channels/" . $video->channel_id . "/" . $video->id . "/render/render.mp4";
