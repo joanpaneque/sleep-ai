@@ -3,6 +3,11 @@ import { useForm } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import AppLayout from '../Layout/AppLayout.vue'
 
+const props = defineProps({
+    webhook_token: String,
+    app_url: String
+})
+
 const form = useForm({
     name: '',
     description: '',
@@ -14,7 +19,10 @@ const form = useForm({
     remove_frame_image: false,
     image_style_prompt: '',
     thumbnail: '',
-    thumbnail_image_prompt: ''
+    thumbnail_image_prompt: '',
+    google_oauth_webhook_token: props.webhook_token,
+    google_client_id: '',
+    google_client_secret: ''
 })
 
 const introFile = ref(null)
@@ -26,6 +34,8 @@ const isDragOverFrame = ref(false)
 const videoPreviewUrl = ref(null)
 const backgroundPreviewUrl = ref(false)
 const imagePreviewUrl = ref(null)
+const showCopySuccess = ref(false)
+const isRegeneratingToken = ref(false)
 
 // Extensiones de video permitidas
 const allowedVideoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'flv', 'mpeg', 'mpg', 'm4v', 'webm', 'mkv']
@@ -43,7 +53,8 @@ const submit = () => {
         background_video: backgroundVideoFile.value,
         remove_background_video: form.remove_background_video,
         frame_image: frameImageFile.value,
-        remove_frame_image: form.remove_frame_image
+        remove_frame_image: form.remove_frame_image,
+        google_oauth_webhook_token: props.webhook_token
     })).post(route('channels.store'), {
         onSuccess: () => {
             form.reset()
@@ -253,6 +264,52 @@ const formatFileSize = (bytes) => {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+const copyWebhookUrl = async () => {
+    const webhookUrl = `${props.app_url}/webhook/oauth/${form.google_oauth_webhook_token}`
+    try {
+        await navigator.clipboard.writeText(webhookUrl)
+        // Mostrar feedback visual de éxito
+        showCopySuccess.value = true
+        setTimeout(() => {
+            showCopySuccess.value = false
+        }, 2000) // Ocultar después de 2 segundos
+    } catch (err) {
+        console.error('Error al copiar URL:', err)
+        // Fallback: seleccionar el texto
+        const input = document.querySelector('input[readonly]')
+        if (input) {
+            input.select()
+        }
+    }
+}
+
+const regenerateToken = async () => {
+    isRegeneratingToken.value = true
+
+    try {
+        const response = await fetch(route('generate-webhook-token'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+            // Actualizar el token en el formulario
+            form.google_oauth_webhook_token = data.token
+        } else {
+            console.error('Error al generar el token:', data.message)
+        }
+    } catch (error) {
+        console.error('Error generating token:', error)
+    } finally {
+        isRegeneratingToken.value = false
+    }
+}
 </script>
 
 <template>
@@ -361,6 +418,130 @@ const formatFileSize = (bytes) => {
                                     <p class="text-xs text-gray-500 mt-1">Opcional - Personaliza el estilo de las imágenes generadas</p>
                                     <p v-if="form.errors.image_style_prompt" class="mt-2 text-sm text-red-400">
                                         {{ form.errors.image_style_prompt }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración del Webhook -->
+                        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-semibold text-white">Configuración del Webhook</h3>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="google_oauth_webhook_token" class="block text-sm font-medium text-gray-300 mb-2">
+                                        Token del Webhook
+                                    </label>
+                                    <div class="flex space-x-2">
+                                        <input
+                                            id="google_oauth_webhook_token"
+                                            v-model="form.google_oauth_webhook_token"
+                                            type="text"
+                                            readonly
+                                            class="block text-white flex-1 px-4 py-3 bg-gray-700/30 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-all duration-200 font-mono"
+                                            placeholder="Token de 16 caracteres"
+                                            maxlength="16"
+                                        >
+                                        <button
+                                            type="button"
+                                            @click="regenerateToken"
+                                            :disabled="isRegeneratingToken"
+                                            class="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium whitespace-nowrap"
+                                        >
+                                            <div class="flex items-center">
+                                                <svg v-if="isRegeneratingToken" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                <span class="ml-2">{{ isRegeneratingToken ? 'Generando...' : 'Generar' }}</span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Token de 16 caracteres con al menos una mayúscula, una minúscula y un número
+                                    </p>
+                                    <p v-if="form.errors.google_oauth_webhook_token" class="mt-2 text-sm text-red-400">
+                                        {{ form.errors.google_oauth_webhook_token }}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                                        URL del Webhook OAuth
+                                    </label>
+                                    <div class="relative">
+                                        <input
+                                            type="text"
+                                            readonly
+                                            :value="`${app_url}/webhook/oauth/${form.google_oauth_webhook_token}`"
+                                            class="block text-white w-full px-4 py-3 bg-gray-700/30 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono text-sm cursor-pointer"
+                                            @click="$event.target.select()"
+                                        >
+                                        <button
+                                            type="button"
+                                            @click="copyWebhookUrl"
+                                            class="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-white transition-colors duration-200"
+                                            :title="showCopySuccess ? '¡Copiado!' : 'Copiar URL'"
+                                        >
+                                            <svg v-if="!showCopySuccess" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                            <svg v-else class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">
+                                        Esta URL será usada por la API de Google para permitir que la web acceda a las estadísticas del canal
+                                    </p>
+                                    <!-- Notificación de copiado -->
+                                    <div v-if="showCopySuccess" class="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center space-x-2 animate-pulse">
+                                        <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span class="text-xs text-green-300 font-medium">¡URL copiada al portapapeles!</span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label for="google_client_id" class="block text-sm font-medium text-gray-300 mb-2">
+                                        Google Client ID
+                                    </label>
+                                    <input
+                                        id="google_client_id"
+                                        v-model="form.google_client_id"
+                                        type="text"
+                                        class="block text-white w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-all duration-200 font-mono text-sm"
+                                        placeholder="Client ID de la aplicación de Google"
+                                    >
+                                    <p v-if="form.errors.google_client_id" class="mt-2 text-sm text-red-400">
+                                        {{ form.errors.google_client_id }}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label for="google_client_secret" class="block text-sm font-medium text-gray-300 mb-2">
+                                        Google Client Secret
+                                    </label>
+                                    <input
+                                        id="google_client_secret"
+                                        v-model="form.google_client_secret"
+                                        type="password"
+                                        class="block text-white w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 placeholder-gray-400 transition-all duration-200 font-mono text-sm"
+                                        placeholder="Client Secret de la aplicación de Google"
+                                    >
+                                    <p v-if="form.errors.google_client_secret" class="mt-2 text-sm text-red-400">
+                                        {{ form.errors.google_client_secret }}
                                     </p>
                                 </div>
                             </div>
