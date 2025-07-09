@@ -1295,61 +1295,144 @@ class ChannelController extends Controller
      */
     public function getChannelVideosFromDB(string $id, Request $request)
     {
-        $channel = Channel::findOrFail($id);
+        try {
+            $channel = Channel::findOrFail($id);
 
-        $limit = $request->get('limit', 20);
-        $orderBy = $request->get('order_by', 'published_at');
-        $orderDirection = $request->get('order_direction', 'desc');
-        $days = $request->get('days'); // Filter by days if provided
+            $limit = $request->get('limit', 20);
+            $orderBy = $request->get('order_by', 'published_at');
+            $orderDirection = $request->get('order_direction', 'desc');
+            $days = $request->get('days'); // Filter by days if provided
 
-        $query = YoutubeVideoStat::where('channel_id', $channel->id)
-            ->where('sync_successful', true);
+            $query = YoutubeVideoStat::where('channel_id', $channel->id)
+                ->where('sync_successful', true);
 
-        // Filter by date if specified
-        if ($days) {
-            $query->where('published_at', '>=', now()->subDays($days));
+            // Filter by date if specified
+            if ($days) {
+                $query->where('published_at', '>=', now()->subDays($days));
+            }
+
+            try {
+                $videos = $query->orderBy($orderBy, $orderDirection)
+                    ->limit($limit)
+                    ->get();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al consultar videos: ' . $e->getMessage()
+                ], 500);
+            }
+
+            // Process videos with error handling
+            $processedVideos = [];
+            foreach ($videos as $video) {
+                try {
+                    $cleanDescription = $this->cleanUtf8Text($video->description);
+                    $truncatedDescription = $cleanDescription ? substr($cleanDescription, 0, 200) . '...' : '';
+                    
+                    $processedVideo = [
+                        'id' => $video->youtube_video_id,
+                        'title' => $this->cleanUtf8Text($video->title),
+                        'description' => $truncatedDescription,
+                        'published_at' => $video->published_at,
+                        'duration' => $video->formatted_duration,
+                        'thumbnail' => $video->thumbnail_high,
+                        'statistics' => [
+                            'view_count' => $video->view_count,
+                            'like_count' => $video->like_count,
+                            'comment_count' => $video->comment_count,
+                            'formatted_view_count' => $video->formatted_view_count,
+                            'formatted_like_count' => $video->formatted_like_count,
+                            'formatted_comment_count' => $video->formatted_comment_count
+                        ],
+                        'metrics' => [
+                            'engagement_rate' => (float) ($video->engagement_rate ?? 0),
+                            'like_rate' => (float) ($video->like_rate ?? 0),
+                            'comment_rate' => (float) ($video->comment_rate ?? 0),
+                            'views_per_day' => (float) ($video->views_per_day ?? 0),
+                            'performance_score' => (int) ($video->performance_score ?? 0),
+                            'performance_level' => $video->performance_level ?? 'Sin datos'
+                        ],
+                        'last_synced_at' => $video->last_synced_at
+                    ];
+                    
+                    // Test if this video can be JSON encoded
+                    $testJson = json_encode($processedVideo);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        // Log the problematic video
+                        Log::error('JSON encoding error for video', [
+                            'video_id' => $video->youtube_video_id,
+                            'json_error' => json_last_error_msg(),
+                            'title' => $video->title,
+                            'description_length' => strlen($video->description ?? '')
+                        ]);
+                        
+                        // Skip this video or use fallback data
+                        $processedVideo['title'] = 'Video con caracteres problemáticos';
+                        $processedVideo['description'] = 'Descripción no disponible';
+                    }
+                    
+                    $processedVideos[] = $processedVideo;
+                    
+                } catch (\Exception $e) {
+                    Log::error('Error processing video', [
+                        'video_id' => $video->youtube_video_id ?? 'unknown',
+                        'error' => $e->getMessage()
+                    ]);
+                    
+                    // Add a fallback video entry
+                    $processedVideos[] = [
+                        'id' => $video->youtube_video_id ?? 'unknown',
+                        'title' => 'Error al procesar video',
+                        'description' => 'Video con datos problemáticos',
+                        'published_at' => $video->published_at ?? now(),
+                        'duration' => '0:00',
+                        'thumbnail' => null,
+                        'statistics' => [
+                            'view_count' => 0,
+                            'like_count' => 0,
+                            'comment_count' => 0,
+                            'formatted_view_count' => '0',
+                            'formatted_like_count' => '0',
+                            'formatted_comment_count' => '0'
+                        ],
+                        'metrics' => [
+                            'engagement_rate' => 0,
+                            'like_rate' => 0,
+                            'comment_rate' => 0,
+                            'views_per_day' => 0,
+                            'performance_score' => 0,
+                            'performance_level' => 'Error'
+                        ],
+                        'last_synced_at' => now()
+                    ];
+                }
+            }
+
+            $responseData = [
+                'success' => true,
+                'data' => [
+                    'total_count' => count($processedVideos),
+                    'videos' => $processedVideos
+                ]
+            ];
+
+            // Test if the entire response can be JSON encoded
+            $testResponse = json_encode($responseData);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de codificación JSON: ' . json_last_error_msg()
+                ], 500);
+            }
+
+            return response()->json($responseData);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener videos del canal: ' . $e->getMessage()
+            ], 500);
         }
-
-        $videos = $query->orderBy($orderBy, $orderDirection)
-            ->limit($limit)
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'total_count' => $videos->count(),
-                'videos' => $videos->map(function($video) {
-                                    $cleanDescription = $this->cleanUtf8Text($video->description);
-                $truncatedDescription = $cleanDescription ? substr($cleanDescription, 0, 200) . '...' : '';
-                
-                return [
-                    'id' => $video->youtube_video_id,
-                    'title' => $this->cleanUtf8Text($video->title),
-                    'description' => $truncatedDescription,
-                    'published_at' => $video->published_at,
-                    'duration' => $video->formatted_duration,
-                    'thumbnail' => $video->thumbnail_high,
-                    'statistics' => [
-                        'view_count' => $video->view_count,
-                        'like_count' => $video->like_count,
-                        'comment_count' => $video->comment_count,
-                        'formatted_view_count' => $video->formatted_view_count,
-                        'formatted_like_count' => $video->formatted_like_count,
-                        'formatted_comment_count' => $video->formatted_comment_count
-                    ],
-                    'metrics' => [
-                        'engagement_rate' => (float) ($video->engagement_rate ?? 0),
-                        'like_rate' => (float) ($video->like_rate ?? 0),
-                        'comment_rate' => (float) ($video->comment_rate ?? 0),
-                        'views_per_day' => (float) ($video->views_per_day ?? 0),
-                        'performance_score' => (int) ($video->performance_score ?? 0),
-                        'performance_level' => $video->performance_level ?? 'Sin datos'
-                    ],
-                    'last_synced_at' => $video->last_synced_at
-                ];
-                })
-            ]
-        ]);
     }
 
     /**
@@ -1979,53 +2062,136 @@ class ChannelController extends Controller
                 $query->where('published_at', '>=', now()->subDays($days));
             }
 
-            $videos = $query->orderBy($orderBy, $orderDirection)
-                ->limit($limit)
-                ->get();
+            try {
+                $videos = $query->orderBy($orderBy, $orderDirection)
+                    ->limit($limit)
+                    ->get();
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al consultar videos: ' . $e->getMessage()
+                ], 500);
+            }
 
             // Get all channels for reference
-            $channels = Channel::all(['id', 'name']);
+            try {
+                $channels = Channel::all(['id', 'name']);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al consultar canales: ' . $e->getMessage()
+                ], 500);
+            }
 
-            return response()->json([
+            // Process videos with error handling
+            $processedVideos = [];
+            foreach ($videos as $video) {
+                try {
+                    $cleanDescription = $this->cleanUtf8Text($video->description);
+                    $truncatedDescription = $cleanDescription ? substr($cleanDescription, 0, 200) . '...' : '';
+                    
+                    $processedVideo = [
+                        'id' => $video->youtube_video_id,
+                        'channel_id' => $video->channel_id,
+                        'title' => $this->cleanUtf8Text($video->title),
+                        'description' => $truncatedDescription,
+                        'published_at' => $video->published_at,
+                        'duration' => $video->formatted_duration,
+                        'thumbnail' => $video->thumbnail_high,
+                        'statistics' => [
+                            'view_count' => $video->view_count,
+                            'like_count' => $video->like_count,
+                            'comment_count' => $video->comment_count,
+                            'formatted_view_count' => $video->formatted_view_count,
+                            'formatted_like_count' => $video->formatted_like_count,
+                            'formatted_comment_count' => $video->formatted_comment_count
+                        ],
+                        'metrics' => [
+                            'engagement_rate' => (float) ($video->engagement_rate ?? 0),
+                            'like_rate' => (float) ($video->like_rate ?? 0),
+                            'comment_rate' => (float) ($video->comment_rate ?? 0),
+                            'views_per_day' => (float) ($video->views_per_day ?? 0),
+                            'performance_score' => (int) ($video->performance_score ?? 0),
+                            'performance_level' => $video->performance_level ?? 'Sin datos'
+                        ],
+                        'last_synced_at' => $video->last_synced_at
+                    ];
+                    
+                    // Test if this video can be JSON encoded
+                    $testJson = json_encode($processedVideo);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        // Log the problematic video
+                        Log::error('JSON encoding error for video', [
+                            'video_id' => $video->youtube_video_id,
+                            'json_error' => json_last_error_msg(),
+                            'title' => $video->title,
+                            'description_length' => strlen($video->description ?? '')
+                        ]);
+                        
+                        // Skip this video or use fallback data
+                        $processedVideo['title'] = 'Video con caracteres problemáticos';
+                        $processedVideo['description'] = 'Descripción no disponible';
+                    }
+                    
+                    $processedVideos[] = $processedVideo;
+                    
+                } catch (\Exception $e) {
+                    Log::error('Error processing video', [
+                        'video_id' => $video->youtube_video_id ?? 'unknown',
+                        'error' => $e->getMessage()
+                    ]);
+                    
+                    // Add a fallback video entry
+                    $processedVideos[] = [
+                        'id' => $video->youtube_video_id ?? 'unknown',
+                        'channel_id' => $video->channel_id ?? 0,
+                        'title' => 'Error al procesar video',
+                        'description' => 'Video con datos problemáticos',
+                        'published_at' => $video->published_at ?? now(),
+                        'duration' => '0:00',
+                        'thumbnail' => null,
+                        'statistics' => [
+                            'view_count' => 0,
+                            'like_count' => 0,
+                            'comment_count' => 0,
+                            'formatted_view_count' => '0',
+                            'formatted_like_count' => '0',
+                            'formatted_comment_count' => '0'
+                        ],
+                        'metrics' => [
+                            'engagement_rate' => 0,
+                            'like_rate' => 0,
+                            'comment_rate' => 0,
+                            'views_per_day' => 0,
+                            'performance_score' => 0,
+                            'performance_level' => 'Error'
+                        ],
+                        'last_synced_at' => now()
+                    ];
+                }
+            }
+
+            $responseData = [
                 'success' => true,
                 'data' => [
-                    'total_count' => $videos->count(),
+                    'total_count' => count($processedVideos),
                     'order_by' => $orderBy,
                     'order_direction' => $orderDirection,
                     'channels' => $channels,
-                    'videos' => $videos->map(function($video) {
-                        $cleanDescription = $this->cleanUtf8Text($video->description);
-                        $truncatedDescription = $cleanDescription ? substr($cleanDescription, 0, 200) . '...' : '';
-                        
-                        return [
-                            'id' => $video->youtube_video_id,
-                            'channel_id' => $video->channel_id,
-                            'title' => $this->cleanUtf8Text($video->title),
-                            'description' => $truncatedDescription,
-                            'published_at' => $video->published_at,
-                            'duration' => $video->formatted_duration,
-                            'thumbnail' => $video->thumbnail_high,
-                            'statistics' => [
-                                'view_count' => $video->view_count,
-                                'like_count' => $video->like_count,
-                                'comment_count' => $video->comment_count,
-                                'formatted_view_count' => $video->formatted_view_count,
-                                'formatted_like_count' => $video->formatted_like_count,
-                                'formatted_comment_count' => $video->formatted_comment_count
-                            ],
-                            'metrics' => [
-                                'engagement_rate' => (float) ($video->engagement_rate ?? 0),
-                                'like_rate' => (float) ($video->like_rate ?? 0),
-                                'comment_rate' => (float) ($video->comment_rate ?? 0),
-                                'views_per_day' => (float) ($video->views_per_day ?? 0),
-                                'performance_score' => (int) ($video->performance_score ?? 0),
-                                'performance_level' => $video->performance_level ?? 'Sin datos'
-                            ],
-                            'last_synced_at' => $video->last_synced_at
-                        ];
-                    })
+                    'videos' => $processedVideos
                 ]
-            ]);
+            ];
+
+            // Test if the entire response can be JSON encoded
+            $testResponse = json_encode($responseData);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de codificación JSON: ' . json_last_error_msg()
+                ], 500);
+            }
+
+            return response()->json($responseData);
 
         } catch (\Exception $e) {
             return response()->json([
