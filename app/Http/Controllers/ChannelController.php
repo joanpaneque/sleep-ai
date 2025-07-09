@@ -89,11 +89,9 @@ class ChannelController extends Controller
     public function index()
     {
         $channels = Channel::all();
-        $storageStats = $this->getStorageStats();
 
         return Inertia::render('Channels/Index', [
-            'channels' => $channels,
-            'storage_stats' => $storageStats
+            'channels' => $channels
         ]);
     }
 
@@ -678,5 +676,39 @@ class ChannelController extends Controller
         $channel->delete();
 
         return redirect()->route('channels.index');
+    }
+
+    /**
+     * Delete all videos for a specific channel
+     */
+    public function deleteVideos(Channel $channel)
+    {
+        Log::info('Deleting videos for channel:', ['channel_id' => $channel->id, 'channel_name' => $channel->name]);
+
+        try {
+            // Mark all videos of this channel as deleted
+            $videosUpdated = $channel->videos()->update(['is_deleted' => true]);
+            Log::info('Videos marked as deleted:', ['count' => $videosUpdated]);
+
+            // Delete the channel directory from storage
+            $channelPath = 'channels/' . $channel->id;
+            if (Storage::disk('public')->exists($channelPath)) {
+                Storage::disk('public')->deleteDirectory($channelPath);
+                Log::info('Channel directory deleted:', ['path' => $channelPath]);
+            } else {
+                Log::info('Channel directory does not exist:', ['path' => $channelPath]);
+            }
+
+            return redirect()->back()->with('success', "Todos los videos del canal '{$channel->name}' han sido eliminados correctamente.");
+
+        } catch (\Exception $e) {
+            Log::error('Error deleting channel videos:', [
+                'channel_id' => $channel->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()->with('error', 'Error al eliminar los videos del canal: ' . $e->getMessage());
+        }
     }
 }

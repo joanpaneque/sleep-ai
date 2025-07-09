@@ -1,13 +1,10 @@
 <script setup>
 import { useForm, router, usePoll } from '@inertiajs/vue3'
+import AppLayout from '../Layout/AppLayout.vue'
 
 defineProps({
     channels: {
         type: Array,
-        required: true
-    },
-    storage_stats: {
-        type: Object,
         required: true
     }
 })
@@ -35,174 +32,134 @@ const editChannel = (channelId) => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50 py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Header -->
-            <div class="text-center mb-12">
-                <h1 class="text-4xl font-bold text-gray-900 mb-4">
-                    Gestión de Canales
-                </h1>
-                <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                    Administra y analiza los canales de YouTube para optimizar el contenido relacionado con el sueño.
-                </p>
+    <AppLayout>
+        <!-- Page Header -->
+        <div class="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-8xl mx-auto px-6 lg:px-8 py-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-white mb-2">Canales</h1>
+                        <p class="text-gray-400">Gestiona y analiza tus canales de YouTube</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <div class="text-sm text-gray-400">Total de canales</div>
+                            <div class="text-2xl font-bold text-white">{{ channels.length }}</div>
+                        </div>
+                        <button
+                            @click="createChannel"
+                            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium rounded-xl transition-all duration-300 shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 hover:scale-105"
+                        >
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Nuevo Canal
+                        </button>
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <!-- Storage Statistics -->
-            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
+        <!-- Main Content -->
+        <div class="max-w-8xl mx-auto px-6 lg:px-8 py-8">
+            <!-- Channels Section -->
+            <div>
                 <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center space-x-3">
-                        <div class="bg-blue-100 rounded-full p-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7M4 7c0-2.21 1.79-4 4-4h8c2.21 0 4 1.79 4 4M4 7h16M8 11h8" />
+                    <h3 class="text-xl font-semibold text-white">Tus Canales</h3>
+                    <div class="text-sm text-gray-400">{{ channels.length }} canal{{ channels.length !== 1 ? 'es' : '' }}</div>
+                </div>
+
+                <!-- Modern Grid Layout -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                    <!-- Create New Channel Card -->
+                    <button
+                        @click="createChannel"
+                        class="group relative bg-gradient-to-br from-gray-800/50 to-gray-900/50 hover:from-gray-700/60 hover:to-gray-800/60 border border-gray-700/50 hover:border-gray-600/50 rounded-2xl p-8 transition-all duration-300 flex flex-col items-center justify-center min-h-[280px] backdrop-blur-sm hover:shadow-2xl hover:shadow-blue-500/10 hover:scale-[1.02]"
+                    >
+                        <!-- Animated Background -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-600/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                        <!-- Plus Icon with Animation -->
+                        <div class="relative w-16 h-16 bg-gradient-to-r from-gray-700 to-gray-600 group-hover:from-blue-600 group-hover:to-purple-600 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg">
+                            <svg class="w-8 h-8 text-gray-400 group-hover:text-white transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
                         </div>
-                        <div>
-                            <h3 class="text-xl font-semibold text-gray-900">Almacenamiento</h3>
-                            <p class="text-sm text-gray-500">Espacio disponible para la aplicación</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-2xl font-bold text-gray-900">
-                            {{ storage_stats.used_percentage }}%
-                        </div>
-                        <div class="text-sm text-gray-500">
-                            {{ storage_stats.used_space_formatted }} usado
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Progress Bar -->
-                <div class="mb-4">
-                    <div class="flex justify-between text-sm text-gray-600 mb-2">
-                        <span>Espacio Usado</span>
-                        <span>{{ storage_stats.used_space_formatted }} / {{ storage_stats.total_space_formatted }}</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                            class="h-3 rounded-full transition-all duration-300"
-                            :class="{
-                                'bg-green-500': storage_stats.used_percentage < 50,
-                                'bg-yellow-500': storage_stats.used_percentage >= 50 && storage_stats.used_percentage < 80,
-                                'bg-red-500': storage_stats.used_percentage >= 80
-                            }"
-                            :style="{ width: storage_stats.used_percentage + '%' }"
-                        ></div>
-                    </div>
-                </div>
+                        <h4 class="text-lg font-semibold text-gray-300 group-hover:text-white transition-colors duration-300 mb-2">
+                            Crear Canal
+                        </h4>
+                        <p class="text-sm text-gray-500 group-hover:text-gray-400 text-center transition-colors duration-300">
+                            Añade un nuevo canal de YouTube a tu dashboard
+                        </p>
 
-                                                                <!-- Storage Details -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600">Espacio Usado</p>
-                                <p class="text-lg font-semibold text-gray-900">{{ storage_stats.used_space_formatted }}</p>
-                            </div>
-                            <div class="bg-blue-100 rounded-full p-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2v2zm0 0h18M7 21l4-4 4 4" />
-                                </svg>
+                        <!-- Subtle border glow -->
+                        <div class="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
+                    </button>
+
+                    <!-- Channel Cards -->
+                    <div v-for="channel in channels" :key="channel.id"
+                         class="group relative bg-gradient-to-br from-gray-800/60 to-gray-900/40 hover:from-gray-700/70 hover:to-gray-800/50 border border-gray-700/50 hover:border-gray-600/50 rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer backdrop-blur-sm hover:shadow-2xl hover:shadow-gray-900/20 hover:scale-[1.02]"
+                         @click="showChannel(channel.id)">
+
+                        <!-- Card Header -->
+                        <div class="p-6 pb-4">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="text-lg font-semibold text-white mb-2 truncate group-hover:text-blue-300 transition-colors duration-300">
+                                        {{ channel.name }}
+                                    </h4>
+                                    <p class="text-sm text-gray-400 line-clamp-3 leading-relaxed">
+                                        {{ channel.description || 'Sin descripción disponible' }}
+                                    </p>
+                                </div>
+                                <div class="ml-4 w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                    </svg>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600">Espacio Disponible</p>
-                                <p class="text-lg font-semibold text-gray-900">{{ storage_stats.free_space_formatted }}</p>
-                            </div>
-                            <div class="bg-green-100 rounded-full p-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600">Espacio Total</p>
-                                <p class="text-lg font-semibold text-gray-900">{{ storage_stats.total_space_formatted }}</p>
-                            </div>
-                            <div class="bg-purple-100 rounded-full p-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Channels Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Add New Channel Card -->
-                <button
-                    @click="createChannel"
-                    class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center p-6 hover:border-blue-500 group"
-                >
-                    <div class="bg-gray-100 rounded-full p-4 mb-4 group-hover:bg-blue-100">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                    </div>
-                    <h2 class="text-xl font-semibold text-gray-600 group-hover:text-blue-600">
-                        Añadir Nuevo Canal
-                    </h2>
-                    <p class="text-gray-500 text-center mt-2">
-                        Agrega un nuevo canal de YouTube
-                    </p>
-                </button>
-
-                <!-- Existing Channel Cards -->
-                <div v-for="channel in channels" :key="channel.id"
-                     class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
-                    <div class="p-6">
-                        <div
-                            @click="showChannel(channel.id)"
-                            class="cursor-pointer"
-                        >
-                            <div class="flex items-center justify-between mb-4">
-                                <h2 class="text-2xl font-bold text-gray-900">
-                                    {{ channel.name }}
-                                </h2>
-                                                                <div class="flex items-center space-x-2">
-                                    <div class="bg-blue-100 rounded-full p-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                        </svg>
-                                    </div>
+                        <!-- Card Footer with Actions -->
+                        <div class="px-6 pb-6">
+                            <div class="flex items-center justify-between pt-4 border-t border-gray-700/50">
+                                <div class="flex items-center space-x-2">
                                     <button
                                         @click.stop="editChannel(channel.id)"
-                                        class="bg-green-100 rounded-full p-2 hover:bg-green-200 transition-colors duration-200"
+                                        class="p-2.5 hover:bg-gray-700/50 rounded-xl transition-all duration-200 group/btn"
                                         title="Editar canal"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg class="w-4 h-4 text-gray-400 group-hover/btn:text-blue-400 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
                                     <button
                                         @click.stop="deleteChannel(channel.id)"
-                                        class="bg-red-100 rounded-full p-2 hover:bg-red-200 transition-colors duration-200"
+                                        class="p-2.5 hover:bg-red-500/10 rounded-xl transition-all duration-200 group/btn"
                                         title="Eliminar canal"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg class="w-4 h-4 text-gray-400 group-hover/btn:text-red-400 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
                                     </button>
                                 </div>
+                                <div class="flex items-center text-xs text-gray-500 group-hover:text-gray-400 transition-colors duration-300">
+                                    <span>Ver detalles</span>
+                                    <svg class="w-3 h-3 ml-1 transform group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
                             </div>
-                            <p class="text-gray-600 mb-4 line-clamp-3">
-                                {{ channel.description }}
-                            </p>
                         </div>
+
+                        <!-- Hover Glow Effect -->
+                        <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-600/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </AppLayout>
 </template>
 
 <style scoped>
@@ -211,5 +168,29 @@ const editChannel = (channelId) => {
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* Custom scrollbar for better aesthetics */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(31, 41, 55, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.5);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.8);
+}
+
+/* Enhanced focus states for accessibility */
+button:focus-visible {
+    outline: 2px solid rgb(59, 130, 246);
+    outline-offset: 2px;
 }
 </style>

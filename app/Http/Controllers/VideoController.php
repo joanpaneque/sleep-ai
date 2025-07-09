@@ -115,7 +115,17 @@ class VideoController extends Controller
         if ($video->status == 'completed') {
             // save the video url
             $video->url = "https://sleepai.online/storage/channels/" . $video->channel_id . "/" . $video->id . "/render/render.mp4";
+
+            // calculate and save the directory size in bytes
+            $video->size_in_bytes = $video->calculateDirectorySize();
+
             $video->save();
+
+            Log::info('Video completed and size calculated', [
+                'video_id' => $video->id,
+                'size_in_bytes' => $video->size_in_bytes
+            ]);
+
             N8NService::processNextVideo();
         }
     }

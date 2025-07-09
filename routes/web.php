@@ -1,37 +1,43 @@
 <?php
-use Illuminate\Support\Facades\Route;
 
-use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\VideoController;
-
+use App\Http\Controllers\StorageController;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/login', [AuthController::class, 'index'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
 Route::get('/', function () {
-    return Inertia::render('Dashboard');
-})->middleware('auth')->name('dashboard');
-
-
-
-Route::middleware('guest')->group(function () {
-
+    return Inertia::render('Welcome', [
+        'canLogin' => Route::has('login'),
+        'canRegister' => Route::has('register'),
+        'laravelVersion' => Application::VERSION,
+        'phpVersion' => PHP_VERSION,
+    ]);
 });
+
+Route::get('/dashboard', function () {
+    return Inertia::render('Dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    // Channel routes
     Route::resource('channels', ChannelController::class);
-    Route::resource('channels.videos', VideoController::class);
-    Route::post('channels.videos/{video}/soft-delete', [VideoController::class, 'softDelete'])->name('channels.videos.soft-delete');
-    Route::post('channels.videos/{video}/queue', [VideoController::class, 'queueVideo'])->name('channels.videos.queue');
-});
 
-// route prefix api
-Route::prefix('api')->group(function () {
-    // route to update video status
-    Route::post('videos/{video}/status', [VideoController::class, 'updateStatus']);
+    // Channel video deletion route
+    Route::delete('/channels/{channel}/delete-videos', [ChannelController::class, 'deleteVideos'])->name('channels.delete-videos');
+
+    // Nested video routes within channels
+    Route::resource('channels.videos', VideoController::class)->except(['index']);
+
+    // Additional video routes
+    Route::post('/videos/{video}/queue', [VideoController::class, 'queueVideo'])->name('videos.queue');
+    Route::post('/videos/{video}/update-status', [VideoController::class, 'updateStatus'])->name('videos.updateStatus');
+    Route::delete('/videos/{video}/soft-delete', [VideoController::class, 'softDelete'])->name('videos.softDelete');
+
+    // Disk usage routes
+    Route::get('/disk-usage', [StorageController::class, 'index'])->name('disk-usage.index');
+    Route::post('/disk-usage/cleanup', [StorageController::class, 'cleanup'])->name('disk-usage.cleanup');
 });
 
 require __DIR__.'/auth.php';
