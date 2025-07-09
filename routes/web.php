@@ -43,6 +43,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/videos/{video}/queue', [VideoController::class, 'queueVideo'])->name('videos.queue');
     Route::post('/videos/{video}/update-status', [VideoController::class, 'updateStatus'])->name('videos.updateStatus');
     Route::delete('/videos/{video}/soft-delete', [VideoController::class, 'softDelete'])->name('videos.softDelete');
+
+    Route::delete('channels/{channel}/videos', [ChannelController::class, 'deleteVideos'])->name('channels.videos.delete');
 });
 
 // Guest routes
