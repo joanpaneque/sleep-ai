@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, usePoll } from '@inertiajs/vue3'
 import AppLayout from '@/pages/Layout/AppLayout.vue'
 import {
     Chart as ChartJS,
@@ -39,7 +39,9 @@ const props = defineProps({
         type: Object,
         required: true
     }
-})
+});
+
+usePoll(2000);
 
 // Chart data
 const chartData = computed(() => {
