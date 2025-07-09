@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\StorageController;
+use App\Http\Controllers\DashboardController;
 
 // Auth routes
 Route::get('/login', [AuthController::class, 'index'])->name('login');
@@ -25,9 +26,7 @@ Route::get('/', function () {
 });
 
 // Dashboard route
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 // Authenticated routes
 Route::middleware('auth')->group(function () {
