@@ -1,6 +1,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
+import AppLayout from '../Layout/AppLayout.vue'
 
 const form = useForm({
     name: '',
@@ -15,14 +16,6 @@ const form = useForm({
     thumbnail: '',
     thumbnail_image_prompt: ''
 })
-
-// Control de visibilidad de secciones
-const showIntroSection = ref(false)
-const showBackgroundSection = ref(false)
-const showFrameSection = ref(false)
-const showStylePromptSection = ref(false)
-const showThumbnailSection = ref(false)
-const showThumbnailImagePromptSection = ref(false)
 
 const introFile = ref(null)
 const backgroundVideoFile = ref(null)
@@ -60,52 +53,8 @@ const submit = () => {
             videoPreviewUrl.value = null
             backgroundPreviewUrl.value = null
             imagePreviewUrl.value = null
-            // Reset checkboxes
-            showIntroSection.value = false
-            showBackgroundSection.value = false
-            showFrameSection.value = false
-            showStylePromptSection.value = false
-            showThumbnailSection.value = false
-            showThumbnailImagePromptSection.value = false
         }
     })
-}
-
-// Función para limpiar archivos cuando se desmarca el checkbox
-const toggleIntroSection = () => {
-    if (!showIntroSection.value) {
-        removeIntroFile()
-    }
-}
-
-const toggleBackgroundSection = () => {
-    if (!showBackgroundSection.value) {
-        removeBackgroundVideoFile()
-    }
-}
-
-const toggleFrameSection = () => {
-    if (!showFrameSection.value) {
-        removeFrameImageFile()
-    }
-}
-
-const toggleStylePromptSection = () => {
-    if (!showStylePromptSection.value) {
-        form.image_style_prompt = ''
-    }
-}
-
-const toggleThumbnailSection = () => {
-    if (!showThumbnailSection.value) {
-        form.thumbnail = ''
-    }
-}
-
-const toggleThumbnailImagePromptSection = () => {
-    if (!showThumbnailImagePromptSection.value) {
-        form.thumbnail_image_prompt = ''
-    }
 }
 
 // Manejo de archivos para intro
@@ -307,520 +256,446 @@ const formatFileSize = (bytes) => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50 py-8">
-        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="bg-white rounded-2xl shadow-lg p-8">
-                <!-- Header -->
-                <div class="text-center mb-8">
-                    <div class="bg-blue-100 rounded-full p-3 w-14 h-14 mx-auto mb-4 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <h1 class="text-3xl font-bold text-gray-900">
-                        Nuevo Canal
-                    </h1>
-                    <p class="mt-2 text-gray-600">
-                        Añade un nuevo canal de YouTube para analizar
-                    </p>
-                </div>
-
-                <!-- Form -->
-                <form @submit.prevent="submit" class="space-y-6">
-                    <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">
-                            Nombre del Canal
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                            <input
-                                id="name"
-                                v-model="form.name"
-                                type="text"
-                                required
-                                class="block text-black w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Nombre del canal"
-                            >
-                        </div>
-                        <p v-if="form.errors.name" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.name }}
-                        </p>
-                    </div>
-
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">
-                            Descripción
-                        </label>
-                        <textarea
-                            id="description"
-                            v-model="form.description"
-                            rows="4"
-                            required
-                            class="block text-black w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Describe el canal y su contenido..."
-                        ></textarea>
-                        <p v-if="form.errors.description" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.description }}
-                        </p>
-                    </div>
-
-                    <!-- Checkbox para Video Intro -->
-                    <div>
-                        <div class="flex items-center">
-                            <input
-                                id="enable-intro"
-                                v-model="showIntroSection"
-                                @change="toggleIntroSection"
-                                type="checkbox"
-                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            >
-                            <label for="enable-intro" class="ml-2 block text-sm font-medium text-gray-700">
-                                Usar una intro personalizada
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Campo de archivo para la intro -->
-                    <div v-if="showIntroSection">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Video Intro del Canal
-                        </label>
-
-                        <!-- Zona de drag & drop para intro -->
-                        <div
-                            class="relative border-2 border-dashed rounded-lg p-6 transition-colors duration-200"
-                            :class="{
-                                'border-blue-400 bg-blue-50': isDragOverIntro,
-                                'border-gray-300 hover:border-gray-400': !isDragOverIntro,
-                                'border-red-300': form.errors.intro
-                            }"
-                            @dragover.prevent="handleIntroDragOver"
-                            @dragleave.prevent="handleIntroDragLeave"
-                            @drop.prevent="handleIntroDrop"
-                            @click="triggerIntroFileInput"
-                        >
-                            <!-- Input oculto -->
-                            <input
-                                id="intro-file-input"
-                                type="file"
-                                accept="video/*"
-                                class="hidden"
-                                @change="handleIntroFileChange"
-                            >
-
-                            <!-- Contenido de la zona de drop -->
-                            <div v-if="!introFile" class="text-center">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <div class="mt-4">
-                                    <p class="text-lg text-gray-600">Arrastra y suelta el video intro aquí</p>
-                                    <p class="text-sm text-gray-500 mt-1">o haz clic para seleccionar</p>
-                                    <p class="text-xs text-gray-400 mt-2">
-                                        Formatos: {{ allowedVideoExtensions.join(', ').toUpperCase() }}
-                                    </p>
-                                    <p class="text-xs text-gray-400">Tamaño máximo: 512MB</p>
-                                </div>
-                            </div>
-
-                            <!-- Preview del archivo seleccionado -->
-                            <div v-else class="space-y-4">
-                                <!-- Video preview -->
-                                <div class="flex justify-center">
-                                    <video
-                                        v-if="videoPreviewUrl"
-                                        :src="videoPreviewUrl"
-                                        controls
-                                        class="max-w-full h-48 rounded-lg shadow-sm"
-                                    >
-                                        Tu navegador no soporta el elemento de video.
-                                    </video>
-                                </div>
-
-                                <!-- Información del archivo -->
-                                <div class="bg-gray-50 rounded-lg p-4">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-3">
-                                            <svg class="h-8 w-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-                                            </svg>
-                                            <div>
-                                                <p class="text-sm font-medium text-gray-900">{{ introFile.name }}</p>
-                                                <p class="text-xs text-gray-500">{{ formatFileSize(introFile.size) }}</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            @click.stop="removeIntroFile"
-                                            class="text-red-500 hover:text-red-700 p-1"
-                                        >
-                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <p v-if="form.errors.intro" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.intro }}
-                        </p>
-                    </div>
-
-                    <!-- Checkbox para Video de Fondo -->
-                    <div>
-                        <div class="flex items-center">
-                            <input
-                                id="enable-background"
-                                v-model="showBackgroundSection"
-                                @change="toggleBackgroundSection"
-                                type="checkbox"
-                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            >
-                            <label for="enable-background" class="ml-2 block text-sm font-medium text-gray-700">
-                                Usar un video de fondo personalizado
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Campo de archivo para el video de fondo -->
-                    <div v-if="showBackgroundSection">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Video de Fondo
-                        </label>
-
-                        <!-- Zona de drag & drop para background video -->
-                        <div
-                            class="relative border-2 border-dashed rounded-lg p-6 transition-colors duration-200"
-                            :class="{
-                                'border-blue-400 bg-blue-50': isDragOverBackground,
-                                'border-gray-300 hover:border-gray-400': !isDragOverBackground,
-                                'border-red-300': form.errors.background_video
-                            }"
-                            @dragover.prevent="handleBackgroundDragOver"
-                            @dragleave.prevent="handleBackgroundDragLeave"
-                            @drop.prevent="handleBackgroundDrop"
-                            @click="triggerBackgroundFileInput"
-                        >
-                            <!-- Input oculto -->
-                            <input
-                                id="background-file-input"
-                                type="file"
-                                accept="video/*"
-                                class="hidden"
-                                @change="handleBackgroundFileChange"
-                            >
-
-                            <!-- Contenido de la zona de drop -->
-                            <div v-if="!backgroundVideoFile" class="text-center">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <div class="mt-4">
-                                    <p class="text-lg text-gray-600">Arrastra y suelta el video de fondo aquí</p>
-                                    <p class="text-sm text-gray-500 mt-1">o haz clic para seleccionar</p>
-                                    <p class="text-xs text-gray-400 mt-2">
-                                        Formatos: {{ allowedVideoExtensions.join(', ').toUpperCase() }}
-                                    </p>
-                                    <p class="text-xs text-gray-400">Tamaño máximo: 512MB</p>
-                                </div>
-                            </div>
-
-                            <!-- Preview del archivo seleccionado -->
-                            <div v-else class="space-y-4">
-                                <!-- Video preview -->
-                                <div class="flex justify-center">
-                                    <video
-                                        v-if="backgroundPreviewUrl"
-                                        :src="backgroundPreviewUrl"
-                                        controls
-                                        class="max-w-full h-48 rounded-lg shadow-sm"
-                                    >
-                                        Tu navegador no soporta el elemento de video.
-                                    </video>
-                                </div>
-
-                                <!-- Información del archivo -->
-                                <div class="bg-gray-50 rounded-lg p-4">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-3">
-                                            <svg class="h-8 w-8 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-                                            </svg>
-                                            <div>
-                                                <p class="text-sm font-medium text-gray-900">{{ backgroundVideoFile.name }}</p>
-                                                <p class="text-xs text-gray-500">{{ formatFileSize(backgroundVideoFile.size) }}</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            @click.stop="removeBackgroundVideoFile"
-                                            class="text-red-500 hover:text-red-700 p-1"
-                                        >
-                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <p v-if="form.errors.background_video" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.background_video }}
-                        </p>
-                    </div>
-
-                    <!-- Checkbox para Imagen del Marco -->
-                    <div>
-                        <div class="flex items-center">
-                            <input
-                                id="enable-frame"
-                                v-model="showFrameSection"
-                                @change="toggleFrameSection"
-                                type="checkbox"
-                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            >
-                            <label for="enable-frame" class="ml-2 block text-sm font-medium text-gray-700">
-                                Usar una imagen de marco personalizada
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Campo de archivo para la imagen del marco -->
-                    <div v-if="showFrameSection">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Imagen del Marco
-                        </label>
-
-                        <!-- Zona de drag & drop para frame image -->
-                        <div
-                            class="relative border-2 border-dashed rounded-lg p-6 transition-colors duration-200"
-                            :class="{
-                                'border-blue-400 bg-blue-50': isDragOverFrame,
-                                'border-gray-300 hover:border-gray-400': !isDragOverFrame,
-                                'border-red-300': form.errors.frame_image
-                            }"
-                            @dragover.prevent="handleFrameDragOver"
-                            @dragleave.prevent="handleFrameDragLeave"
-                            @drop.prevent="handleFrameDrop"
-                            @click="triggerFrameFileInput"
-                        >
-                            <!-- Input oculto -->
-                            <input
-                                id="frame-file-input"
-                                type="file"
-                                accept="image/*"
-                                class="hidden"
-                                @change="handleFrameFileChange"
-                            >
-
-                            <!-- Contenido de la zona de drop -->
-                            <div v-if="!frameImageFile" class="text-center">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
-                                <div class="mt-4">
-                                    <p class="text-lg text-gray-600">Arrastra y suelta la imagen del marco aquí</p>
-                                    <p class="text-sm text-gray-500 mt-1">o haz clic para seleccionar</p>
-                                    <p class="text-xs text-gray-400 mt-2">
-                                        Formatos: {{ allowedImageExtensions.join(', ').toUpperCase() }}
-                                    </p>
-                                    <p class="text-xs text-gray-400">Tamaño máximo: 50MB</p>
-                                </div>
-                            </div>
-
-                            <!-- Preview del archivo seleccionado -->
-                            <div v-else class="space-y-4">
-                                <!-- Image preview -->
-                                <div class="flex justify-center">
-                                    <img
-                                        v-if="imagePreviewUrl"
-                                        :src="imagePreviewUrl"
-                                        class="max-w-full h-48 rounded-lg shadow-sm object-contain"
-                                        alt="Preview de la imagen del marco"
-                                    >
-                                </div>
-
-                                <!-- Información del archivo -->
-                                <div class="bg-gray-50 rounded-lg p-4">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-3">
-                                            <svg class="h-8 w-8 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-                                            </svg>
-                                            <div>
-                                                <p class="text-sm font-medium text-gray-900">{{ frameImageFile.name }}</p>
-                                                <p class="text-xs text-gray-500">{{ formatFileSize(frameImageFile.size) }}</p>
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            @click.stop="removeFrameImageFile"
-                                            class="text-red-500 hover:text-red-700 p-1"
-                                        >
-                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <p v-if="form.errors.frame_image" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.frame_image }}
-                        </p>
-                    </div>
-
-                    <!-- Checkbox para Prompt de Estilo -->
-                    <div>
-                        <div class="flex items-center">
-                            <input
-                                id="enable-style-prompt"
-                                v-model="showStylePromptSection"
-                                @change="toggleStylePromptSection"
-                                type="checkbox"
-                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            >
-                            <label for="enable-style-prompt" class="ml-2 block text-sm font-medium text-gray-700">
-                                Personalizar el estilo de las imágenes generadas
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Campo de texto para el prompt de estilo de imagen -->
-                    <div v-if="showStylePromptSection">
-                        <label for="image_style_prompt" class="block text-sm font-medium text-gray-700 mb-1">
-                            Prompt de Estilo de Imagen
-                        </label>
-                        <textarea
-                            id="image_style_prompt"
-                            v-model="form.image_style_prompt"
-                            rows="3"
-                            class="block text-black w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Describe el estilo visual que quieres para las imágenes generadas (ej: estilo anime, realista, cartoon, etc.)"
-                        ></textarea>
-                        <p class="text-xs text-gray-500 mt-1">Máximo 1000 caracteres</p>
-                        <p v-if="form.errors.image_style_prompt" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.image_style_prompt }}
-                        </p>
-                    </div>
-
-                    <!-- Checkbox para Template de Thumbnail -->
-                    <div>
-                        <div class="flex items-center">
-                            <input
-                                id="enable-thumbnail"
-                                v-model="showThumbnailSection"
-                                @change="toggleThumbnailSection"
-                                type="checkbox"
-                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            >
-                            <label for="enable-thumbnail" class="ml-2 block text-sm font-medium text-gray-700">
-                                Usar un template de thumbnail personalizado
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Campo de texto para el template de thumbnail -->
-                    <div v-if="showThumbnailSection">
-                        <label for="thumbnail" class="block text-sm font-medium text-gray-700 mb-1">
-                            Template de Thumbnail (HTML)
-                        </label>
-                        <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <h4 class="text-sm font-medium text-blue-800 mb-2">Variables disponibles:</h4>
-                            <div class="text-xs text-blue-700 space-y-1">
-                                <p><code class="bg-blue-100 px-1 rounded">%title%</code> - Título general</p>
-                                <p><code class="bg-blue-100 px-1 rounded">%subtitle%</code> - Subtítulo</p>
-                                <p><code class="bg-blue-100 px-1 rounded">%img_url%</code> - URL de la imagen</p>
-                            </div>
-                        </div>
-                        <textarea
-                            id="thumbnail"
-                            v-model="form.thumbnail"
-                            rows="8"
-                            class="block text-black w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                            placeholder="Pega aquí el código HTML del template de thumbnail..."
-                        ></textarea>
-                        <p class="text-xs text-gray-500 mt-1">Código HTML completo del template de thumbnail. Usa las variables mostradas arriba para contenido dinámico.</p>
-                        <p v-if="form.errors.thumbnail" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.thumbnail }}
-                        </p>
-                    </div>
-
-                    <!-- Checkbox para Prompt de Imagen del Thumbnail -->
-                    <div>
-                        <div class="flex items-center">
-                            <input
-                                id="enable-thumbnail-image-prompt"
-                                v-model="showThumbnailImagePromptSection"
-                                @change="toggleThumbnailImagePromptSection"
-                                type="checkbox"
-                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            >
-                            <label for="enable-thumbnail-image-prompt" class="ml-2 block text-sm font-medium text-gray-700">
-                                Usar prompt inteligente para imágenes de thumbnail
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Campo de texto para el prompt de imagen del thumbnail -->
-                    <div v-if="showThumbnailImagePromptSection">
-                        <label for="thumbnail_image_prompt" class="block text-sm font-medium text-gray-700 mb-1">
-                            Prompt Inteligente para Generación de Imágenes
-                        </label>
-                        <div class="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <h4 class="text-sm font-medium text-green-800 mb-2">Variables disponibles:</h4>
-                            <div class="text-xs text-green-700 space-y-1">
-                                <p><code class="bg-green-100 px-1 rounded">%video_title%</code> - Título del video específico</p>
-                            </div>
-                            <p class="text-xs text-green-600 mt-2">
-                                La IA usará este prompt para generar un prompt personalizado para cada video específico.
-                            </p>
-                        </div>
-                        <textarea
-                            id="thumbnail_image_prompt"
-                            v-model="form.thumbnail_image_prompt"
-                            rows="4"
-                            class="block text-black w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Ej: Genera una imagen cinematográfica basada en '%video_title%' con estilo moderno y colores vibrantes"
-                        ></textarea>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Máximo 1000 caracteres. Este prompt se enviará a la IA para que genere un prompt específico y personalizado para cada video individual, usando el título del video como contexto.
-                        </p>
-                        <p v-if="form.errors.thumbnail_image_prompt" class="mt-1 text-sm text-red-600">
-                            {{ form.errors.thumbnail_image_prompt }}
-                        </p>
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="flex items-center justify-end space-x-3 pt-4">
-                        <a
-                            :href="route('channels.index')"
-                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                            Cancelar
-                        </a>
-                        <button
-                            type="submit"
-                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                            :disabled="form.processing"
-                        >
-                            <svg v-if="form.processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    <AppLayout>
+        <!-- Header -->
+        <div class="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/50">
+            <div class="max-w-8xl mx-auto px-6 lg:px-8 py-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-14 h-14 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
-                            {{ form.processing ? 'Guardando...' : 'Guardar Canal' }}
-                        </button>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold text-white mb-1">Nuevo Canal</h1>
+                            <p class="text-gray-400">Configura un nuevo canal de YouTube</p>
+                        </div>
                     </div>
-                </form>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-400">Configuración</div>
+                        <div class="text-white font-medium">Canal YouTube</div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+
+        <!-- Main Content -->
+        <div class="max-w-8xl mx-auto px-6 lg:px-8 py-8">
+            <form @submit.prevent="submit">
+                <!-- Bento Grid Layout -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Información Básica - Ocupa 2 columnas -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Datos del Canal -->
+                        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-semibold text-white">Información del Canal</h3>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="name" class="block text-sm font-medium text-gray-300 mb-2">
+                                        Nombre del Canal
+                                    </label>
+                                    <input
+                                        id="name"
+                                        v-model="form.name"
+                                        type="text"
+                                        required
+                                        class="block text-white w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 transition-all duration-200"
+                                        placeholder="Nombre del canal de YouTube"
+                                    >
+                                    <p v-if="form.errors.name" class="mt-2 text-sm text-red-400">
+                                        {{ form.errors.name }}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label for="description" class="block text-sm font-medium text-gray-300 mb-2">
+                                        Descripción
+                                    </label>
+                                    <textarea
+                                        id="description"
+                                        v-model="form.description"
+                                        rows="4"
+                                        required
+                                        class="block text-white w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 transition-all duration-200"
+                                        placeholder="Describe el canal y su contenido..."
+                                    ></textarea>
+                                    <p v-if="form.errors.description" class="mt-2 text-sm text-red-400">
+                                        {{ form.errors.description }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Personalización de Estilo -->
+                        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                            <div class="flex items-center space-x-3 mb-6">
+                                <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-semibold text-white">Personalización de Estilo</h3>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="image_style_prompt" class="block text-sm font-medium text-gray-300 mb-2">
+                                        Estilo de Imágenes
+                                    </label>
+                                    <textarea
+                                        id="image_style_prompt"
+                                        v-model="form.image_style_prompt"
+                                        rows="3"
+                                        class="block text-white w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 transition-all duration-200"
+                                        placeholder="Describe el estilo visual (ej: estilo anime, realista, cartoon, etc.)"
+                                    ></textarea>
+                                    <p class="text-xs text-gray-500 mt-1">Opcional - Personaliza el estilo de las imágenes generadas</p>
+                                    <p v-if="form.errors.image_style_prompt" class="mt-2 text-sm text-red-400">
+                                        {{ form.errors.image_style_prompt }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Templates -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Template de Thumbnail -->
+                            <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                                <div class="flex items-center space-x-3 mb-4">
+                                    <div class="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <h4 class="text-lg font-semibold text-white">Template HTML</h4>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div class="p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
+                                        <div class="text-xs text-green-400 space-y-1">
+                                            <p><code class="bg-green-400/20 px-1 rounded">%title%</code> - Título</p>
+                                            <p><code class="bg-green-400/20 px-1 rounded">%subtitle%</code> - Subtítulo</p>
+                                            <p><code class="bg-green-400/20 px-1 rounded">%img_url%</code> - URL imagen</p>
+                                        </div>
+                                    </div>
+                                    <textarea
+                                        id="thumbnail"
+                                        v-model="form.thumbnail"
+                                        rows="6"
+                                        class="block text-white w-full px-3 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm placeholder-gray-400 transition-all duration-200"
+                                        placeholder="<div>Template HTML...</div>"
+                                    ></textarea>
+                                    <p v-if="form.errors.thumbnail" class="text-sm text-red-400">
+                                        {{ form.errors.thumbnail }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Prompt Inteligente -->
+                            <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                                <div class="flex items-center space-x-3 mb-4">
+                                    <div class="w-8 h-8 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                        </svg>
+                                    </div>
+                                    <h4 class="text-lg font-semibold text-white">Prompt IA</h4>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                                        <div class="text-xs text-yellow-400">
+                                            <p><code class="bg-yellow-400/20 px-1 rounded">%video_title%</code> - Título específico del video</p>
+                                            <p class="text-xs text-yellow-400 mt-1">
+                                                La IA generará prompts personalizados para cada video.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <textarea
+                                        id="thumbnail_image_prompt"
+                                        v-model="form.thumbnail_image_prompt"
+                                        rows="6"
+                                        class="block text-white w-full px-3 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 transition-all duration-200"
+                                        placeholder="Genera una imagen cinematográfica basada en '%video_title%'..."
+                                    ></textarea>
+                                    <p v-if="form.errors.thumbnail_image_prompt" class="text-sm text-red-400">
+                                        {{ form.errors.thumbnail_image_prompt }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Archivos Multimedia - Columna derecha -->
+                    <div class="space-y-6">
+                        <!-- Video Intro -->
+                        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                            <div class="flex items-center space-x-3 mb-4">
+                                <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293H15M9 10v4a2 2 0 002 2h2a2 2 0 002-2v-4M9 10V9a2 2 0 012-2h2a2 2 0 012 2v1" />
+                                    </svg>
+                                </div>
+                                <h4 class="text-lg font-semibold text-white">Video Intro</h4>
+                            </div>
+
+                            <!-- Preview del video si existe -->
+                            <div v-if="videoPreviewUrl" class="mb-4">
+                                <video
+                                    :src="videoPreviewUrl"
+                                    controls
+                                    class="w-full h-32 rounded-xl shadow-sm object-cover"
+                                >
+                                    Tu navegador no soporta el elemento de video.
+                                </video>
+                                <div class="mt-2 flex items-center justify-between">
+                                    <div class="text-sm text-gray-400">
+                                        {{ introFile.name }} ({{ formatFileSize(introFile.size) }})
+                                    </div>
+                                    <button
+                                        type="button"
+                                        @click="removeIntroFile"
+                                        class="text-red-400 hover:text-red-300 transition-colors duration-200"
+                                    >
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Zona de drag & drop -->
+                            <div
+                                class="relative border-2 border-dashed rounded-xl p-4 transition-colors duration-200 cursor-pointer"
+                                :class="{
+                                    'border-blue-400 bg-blue-500/10': isDragOverIntro,
+                                    'border-gray-600/50 hover:border-gray-500/50': !isDragOverIntro,
+                                    'border-red-400': form.errors.intro
+                                }"
+                                @dragover.prevent="handleIntroDragOver"
+                                @dragleave.prevent="handleIntroDragLeave"
+                                @drop.prevent="handleIntroDrop"
+                                @click="triggerIntroFileInput"
+                            >
+                                <input
+                                    id="intro-file-input"
+                                    type="file"
+                                    accept="video/*"
+                                    class="hidden"
+                                    @change="handleIntroFileChange"
+                                >
+                                <div class="text-center">
+                                    <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <p class="text-sm text-gray-300">Arrastra tu video intro</p>
+                                    <p class="text-xs text-gray-500 mt-1">o haz clic para seleccionar</p>
+                                    <p class="text-xs text-gray-500 mt-1">Máx. 512MB</p>
+                                </div>
+                            </div>
+                            <p v-if="form.errors.intro" class="mt-2 text-sm text-red-400">
+                                {{ form.errors.intro }}
+                            </p>
+                        </div>
+
+                        <!-- Video de Fondo -->
+                        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                            <div class="flex items-center space-x-3 mb-4">
+                                <div class="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m0 0V1a1 1 0 011-1h2a1 1 0 011 1v18a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1h2a1 1 0 011 1v3" />
+                                    </svg>
+                                </div>
+                                <h4 class="text-lg font-semibold text-white">Video Fondo</h4>
+                            </div>
+
+                            <!-- Preview del video si existe -->
+                            <div v-if="backgroundPreviewUrl" class="mb-4">
+                                <video
+                                    :src="backgroundPreviewUrl"
+                                    controls
+                                    class="w-full h-32 rounded-xl shadow-sm object-cover"
+                                >
+                                    Tu navegador no soporta el elemento de video.
+                                </video>
+                                <div class="mt-2 flex items-center justify-between">
+                                    <div class="text-sm text-gray-400">
+                                        {{ backgroundVideoFile.name }} ({{ formatFileSize(backgroundVideoFile.size) }})
+                                    </div>
+                                    <button
+                                        type="button"
+                                        @click="removeBackgroundVideoFile"
+                                        class="text-red-400 hover:text-red-300 transition-colors duration-200"
+                                    >
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Zona de drag & drop -->
+                            <div
+                                class="relative border-2 border-dashed rounded-xl p-4 transition-colors duration-200 cursor-pointer"
+                                :class="{
+                                    'border-blue-400 bg-blue-500/10': isDragOverBackground,
+                                    'border-gray-600/50 hover:border-gray-500/50': !isDragOverBackground,
+                                    'border-red-400': form.errors.background_video
+                                }"
+                                @dragover.prevent="handleBackgroundDragOver"
+                                @dragleave.prevent="handleBackgroundDragLeave"
+                                @drop.prevent="handleBackgroundDrop"
+                                @click="triggerBackgroundFileInput"
+                            >
+                                <input
+                                    id="background-file-input"
+                                    type="file"
+                                    accept="video/*"
+                                    class="hidden"
+                                    @change="handleBackgroundFileChange"
+                                >
+                                <div class="text-center">
+                                    <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <p class="text-sm text-gray-300">Arrastra video de fondo</p>
+                                    <p class="text-xs text-gray-500 mt-1">o haz clic para seleccionar</p>
+                                    <p class="text-xs text-gray-500 mt-1">Máx. 512MB</p>
+                                </div>
+                            </div>
+                            <p v-if="form.errors.background_video" class="mt-2 text-sm text-red-400">
+                                {{ form.errors.background_video }}
+                            </p>
+                        </div>
+
+                        <!-- Imagen del Marco -->
+                        <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 shadow-xl">
+                            <div class="flex items-center space-x-3 mb-4">
+                                <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <h4 class="text-lg font-semibold text-white">Imagen Marco</h4>
+                            </div>
+
+                            <!-- Preview de la imagen si existe -->
+                            <div v-if="imagePreviewUrl" class="mb-4">
+                                <img
+                                    :src="imagePreviewUrl"
+                                    class="w-full h-32 rounded-xl shadow-sm object-cover"
+                                    alt="Preview de la imagen del marco"
+                                >
+                                <div class="mt-2 flex items-center justify-between">
+                                    <div class="text-sm text-gray-400">
+                                        {{ frameImageFile.name }} ({{ formatFileSize(frameImageFile.size) }})
+                                    </div>
+                                    <button
+                                        type="button"
+                                        @click="removeFrameImageFile"
+                                        class="text-red-400 hover:text-red-300 transition-colors duration-200"
+                                    >
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Zona de drag & drop -->
+                            <div
+                                class="relative border-2 border-dashed rounded-xl p-4 transition-colors duration-200 cursor-pointer"
+                                :class="{
+                                    'border-blue-400 bg-blue-500/10': isDragOverFrame,
+                                    'border-gray-600/50 hover:border-gray-500/50': !isDragOverFrame,
+                                    'border-red-400': form.errors.frame_image
+                                }"
+                                @dragover.prevent="handleFrameDragOver"
+                                @dragleave.prevent="handleFrameDragLeave"
+                                @drop.prevent="handleFrameDrop"
+                                @click="triggerFrameFileInput"
+                            >
+                                <input
+                                    id="frame-file-input"
+                                    type="file"
+                                    accept="image/*"
+                                    class="hidden"
+                                    @change="handleFrameFileChange"
+                                >
+                                <div class="text-center">
+                                    <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <p class="text-sm text-gray-300">Arrastra imagen del marco</p>
+                                    <p class="text-xs text-gray-500 mt-1">o haz clic para seleccionar</p>
+                                    <p class="text-xs text-gray-500 mt-1">Máx. 50MB</p>
+                                </div>
+                            </div>
+                            <p v-if="form.errors.frame_image" class="mt-2 text-sm text-red-400">
+                                {{ form.errors.frame_image }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-700/50">
+                    <a
+                        :href="route('channels.index')"
+                        class="inline-flex items-center px-6 py-3 border border-gray-600/50 rounded-xl text-sm font-medium text-gray-300 bg-gray-700/30 hover:bg-gray-700/50 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                    >
+                        Cancelar
+                    </a>
+                    <button
+                        type="submit"
+                        class="inline-flex items-center px-6 py-3 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all duration-200 hover:scale-105"
+                        :disabled="form.processing"
+                    >
+                        <svg v-if="form.processing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {{ form.processing ? 'Creando...' : 'Crear Canal' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </AppLayout>
 </template>
+
+<style scoped>
+/* Custom scrollbar for better aesthetics */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(31, 41, 55, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.5);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.8);
+}
+
+/* Enhanced focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid rgb(59, 130, 246);
+    outline-offset: 2px;
+}
+</style>
