@@ -15,18 +15,13 @@ Route::get('/login', [AuthController::class, 'index'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Welcome page - redirect to dashboard if authenticated
+// Root route - redirect based on authentication status
 Route::get('/', function () {
     if (Auth::check()) {
         return redirect('/dashboard');
     }
 
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect('/login');
 });
 
 // Dashboard route
