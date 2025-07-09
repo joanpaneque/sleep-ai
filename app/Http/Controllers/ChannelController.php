@@ -1267,7 +1267,31 @@ class ChannelController extends Controller
     }
 
     /**
-     * Get channel videos statistics from local database
+     * Clean malformed UTF-8 characters from text
+     */
+    private function cleanUtf8Text(?string $text): ?string
+    {
+        if ($text === null) {
+            return null;
+        }
+
+        // Remove malformed UTF-8 characters
+        $cleaned = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        
+        // Remove null bytes and other problematic characters
+        $cleaned = str_replace(["\0", "\x00"], '', $cleaned);
+        
+        // Ensure proper UTF-8 encoding
+        if (!mb_check_encoding($cleaned, 'UTF-8')) {
+            // If still not valid UTF-8, remove non-UTF-8 characters
+            $cleaned = mb_convert_encoding($cleaned, 'UTF-8', 'auto');
+        }
+        
+        return $cleaned;
+    }
+
+    /**
+     * Get channel videos from local database
      */
     public function getChannelVideosFromDB(string $id, Request $request)
     {
@@ -1295,31 +1319,34 @@ class ChannelController extends Controller
             'data' => [
                 'total_count' => $videos->count(),
                 'videos' => $videos->map(function($video) {
-                    return [
-                        'id' => $video->youtube_video_id,
-                        'title' => $video->title,
-                        'description' => substr($video->description, 0, 200) . '...',
-                        'published_at' => $video->published_at,
-                        'duration' => $video->formatted_duration,
-                        'thumbnail' => $video->thumbnail_high,
-                        'statistics' => [
-                            'view_count' => $video->view_count,
-                            'like_count' => $video->like_count,
-                            'comment_count' => $video->comment_count,
-                            'formatted_view_count' => $video->formatted_view_count,
-                            'formatted_like_count' => $video->formatted_like_count,
-                            'formatted_comment_count' => $video->formatted_comment_count
-                        ],
-                        'metrics' => [
-                            'engagement_rate' => (float) ($video->engagement_rate ?? 0),
-                            'like_rate' => (float) ($video->like_rate ?? 0),
-                            'comment_rate' => (float) ($video->comment_rate ?? 0),
-                            'views_per_day' => (float) ($video->views_per_day ?? 0),
-                            'performance_score' => (int) ($video->performance_score ?? 0),
-                            'performance_level' => $video->performance_level ?? 'Sin datos'
-                        ],
-                        'last_synced_at' => $video->last_synced_at
-                    ];
+                                    $cleanDescription = $this->cleanUtf8Text($video->description);
+                $truncatedDescription = $cleanDescription ? substr($cleanDescription, 0, 200) . '...' : '';
+                
+                return [
+                    'id' => $video->youtube_video_id,
+                    'title' => $this->cleanUtf8Text($video->title),
+                    'description' => $truncatedDescription,
+                    'published_at' => $video->published_at,
+                    'duration' => $video->formatted_duration,
+                    'thumbnail' => $video->thumbnail_high,
+                    'statistics' => [
+                        'view_count' => $video->view_count,
+                        'like_count' => $video->like_count,
+                        'comment_count' => $video->comment_count,
+                        'formatted_view_count' => $video->formatted_view_count,
+                        'formatted_like_count' => $video->formatted_like_count,
+                        'formatted_comment_count' => $video->formatted_comment_count
+                    ],
+                    'metrics' => [
+                        'engagement_rate' => (float) ($video->engagement_rate ?? 0),
+                        'like_rate' => (float) ($video->like_rate ?? 0),
+                        'comment_rate' => (float) ($video->comment_rate ?? 0),
+                        'views_per_day' => (float) ($video->views_per_day ?? 0),
+                        'performance_score' => (int) ($video->performance_score ?? 0),
+                        'performance_level' => $video->performance_level ?? 'Sin datos'
+                    ],
+                    'last_synced_at' => $video->last_synced_at
+                ];
                 })
             ]
         ]);
@@ -1365,7 +1392,7 @@ class ChannelController extends Controller
                 'videos' => $videos->map(function($video) use ($metric) {
                     return [
                         'id' => $video->youtube_video_id,
-                        'title' => $video->title,
+                        'title' => $this->cleanUtf8Text($video->title),
                         'published_at' => $video->published_at,
                         'thumbnail' => $video->thumbnail_high,
                         'metric_value' => $video->{$metric},
@@ -1425,8 +1452,8 @@ class ChannelController extends Controller
             'data' => [
                 'channel_info' => [
                     'id' => $channelStats->youtube_channel_id,
-                    'title' => $channelStats->title,
-                    'description' => $channelStats->description,
+                    'title' => $this->cleanUtf8Text($channelStats->title),
+                    'description' => $this->cleanUtf8Text($channelStats->description),
                     'country' => $channelStats->country,
                     'profile_image_url' => $channelStats->profile_image_url,
                     'banner_image_url' => $channelStats->banner_image_url
@@ -1447,7 +1474,7 @@ class ChannelController extends Controller
                 'top_videos' => $topVideos->map(function($video) {
                     return [
                         'id' => $video->youtube_video_id,
-                        'title' => $video->title,
+                        'title' => $this->cleanUtf8Text($video->title),
                         'view_count' => $video->view_count,
                         'formatted_view_count' => $video->formatted_view_count,
                         'thumbnail' => $video->thumbnail_high,
@@ -1457,7 +1484,7 @@ class ChannelController extends Controller
                 'recent_videos' => $recentVideos->map(function($video) {
                     return [
                         'id' => $video->youtube_video_id,
-                        'title' => $video->title,
+                        'title' => $this->cleanUtf8Text($video->title),
                         'published_at' => $video->published_at,
                         'view_count' => $video->view_count,
                         'engagement_rate' => (float) ($video->engagement_rate ?? 0),
@@ -1967,11 +1994,14 @@ class ChannelController extends Controller
                     'order_direction' => $orderDirection,
                     'channels' => $channels,
                     'videos' => $videos->map(function($video) {
+                        $cleanDescription = $this->cleanUtf8Text($video->description);
+                        $truncatedDescription = $cleanDescription ? substr($cleanDescription, 0, 200) . '...' : '';
+                        
                         return [
                             'id' => $video->youtube_video_id,
                             'channel_id' => $video->channel_id,
-                            'title' => $video->title,
-                            'description' => substr($video->description, 0, 200) . '...',
+                            'title' => $this->cleanUtf8Text($video->title),
+                            'description' => $truncatedDescription,
                             'published_at' => $video->published_at,
                             'duration' => $video->formatted_duration,
                             'thumbnail' => $video->thumbnail_high,

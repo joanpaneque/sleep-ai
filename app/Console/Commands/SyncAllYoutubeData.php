@@ -132,6 +132,30 @@ class SyncAllYoutubeData extends Command
     }
 
     /**
+     * Clean malformed UTF-8 characters from text
+     */
+    private function cleanUtf8Text(?string $text): ?string
+    {
+        if ($text === null) {
+            return null;
+        }
+
+        // Remove malformed UTF-8 characters
+        $cleaned = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        
+        // Remove null bytes and other problematic characters
+        $cleaned = str_replace(["\0", "\x00"], '', $cleaned);
+        
+        // Ensure proper UTF-8 encoding
+        if (!mb_check_encoding($cleaned, 'UTF-8')) {
+            // If still not valid UTF-8, remove non-UTF-8 characters
+            $cleaned = mb_convert_encoding($cleaned, 'UTF-8', 'auto');
+        }
+        
+        return $cleaned;
+    }
+
+    /**
      * Check if channel was recently synced
      */
     private function isRecentlySynced(Channel $channel): bool
@@ -189,8 +213,8 @@ class SyncAllYoutubeData extends Command
             YoutubeChannelStat::create([
                 'channel_id' => $channel->id,
                 'youtube_channel_id' => $channelInfo['id'] ?? null,
-                'title' => $channelInfo['snippet']['title'] ?? null,
-                'description' => $channelInfo['snippet']['description'] ?? null,
+                'title' => $this->cleanUtf8Text($channelInfo['snippet']['title'] ?? null),
+                'description' => $this->cleanUtf8Text($channelInfo['snippet']['description'] ?? null),
                 'country' => $channelInfo['snippet']['country'] ?? null,
                 'published_at' => isset($channelInfo['snippet']['publishedAt']) ?
                     new \DateTime($channelInfo['snippet']['publishedAt']) : null,
@@ -200,7 +224,7 @@ class SyncAllYoutubeData extends Command
                 'hidden_subscriber_count' => (bool) ($statistics['hiddenSubscriberCount'] ?? false),
                 'banner_image_url' => $branding['image']['bannerExternalUrl'] ?? null,
                 'profile_image_url' => $channelInfo['snippet']['thumbnails']['high']['url'] ?? null,
-                'channel_keywords' => $branding['channel']['keywords'] ?? null,
+                'channel_keywords' => $this->cleanUtf8Text($branding['channel']['keywords'] ?? null),
                 'default_language' => $branding['channel']['defaultLanguage'] ?? null,
                 'avg_views_per_video' => $avgViewsPerVideo,
                 'videos_last_30d' => $videosLast30d,
@@ -318,6 +342,17 @@ class SyncAllYoutubeData extends Command
         // Get thumbnails
         $thumbnails = $snippet['thumbnails'] ?? [];
 
+        // Clean tags array
+        $cleanTags = [];
+        if (isset($snippet['tags']) && is_array($snippet['tags'])) {
+            foreach ($snippet['tags'] as $tag) {
+                $cleanTag = $this->cleanUtf8Text($tag);
+                if ($cleanTag !== null) {
+                    $cleanTags[] = $cleanTag;
+                }
+            }
+        }
+
         // Update or create video stat record
         YoutubeVideoStat::updateOrCreate(
             [
@@ -326,13 +361,13 @@ class SyncAllYoutubeData extends Command
             ],
             [
                 'youtube_channel_id' => $snippet['channelId'] ?? null,
-                'title' => $snippet['title'] ?? null,
-                'description' => $snippet['description'] ?? null,
+                'title' => $this->cleanUtf8Text($snippet['title'] ?? null),
+                'description' => $this->cleanUtf8Text($snippet['description'] ?? null),
                 'published_at' => $publishedAt ? new \DateTime($publishedAt) : null,
                 'duration' => $duration,
                 'duration_seconds' => $durationSeconds,
                 'category_id' => $snippet['categoryId'] ?? null,
-                'tags' => $snippet['tags'] ?? [],
+                'tags' => $cleanTags,
                 'thumbnail_default' => $thumbnails['default']['url'] ?? null,
                 'thumbnail_medium' => $thumbnails['medium']['url'] ?? null,
                 'thumbnail_high' => $thumbnails['high']['url'] ?? null,
