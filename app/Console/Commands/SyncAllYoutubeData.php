@@ -319,6 +319,21 @@ class SyncAllYoutubeData extends Command
         $contentDetails = $videoData['contentDetails'] ?? [];
         $status = $videoData['status'] ?? [];
 
+        // Check if video was published after January 1, 2025
+        $publishedAt = $snippet['publishedAt'] ?? null;
+        if ($publishedAt) {
+            $publishedDate = new \DateTime($publishedAt);
+            $cutoffDate = new \DateTime('2025-01-01');
+            
+            if ($publishedDate < $cutoffDate) {
+                // Skip videos published before January 1, 2025
+                return;
+            }
+        } else {
+            // Skip videos without publication date
+            return;
+        }
+
         // Calculate metrics
         $viewCount = (int) ($statistics['viewCount'] ?? 0);
         $likeCount = (int) ($statistics['likeCount'] ?? 0);
@@ -333,7 +348,6 @@ class SyncAllYoutubeData extends Command
         $durationSeconds = $this->parseDuration($duration);
 
         // Calculate views per day
-        $publishedAt = $snippet['publishedAt'] ?? null;
         $viewsPerDay = $this->calculateViewsPerDay($publishedAt, $viewCount);
 
         // Calculate performance score
@@ -363,7 +377,7 @@ class SyncAllYoutubeData extends Command
                 'youtube_channel_id' => $snippet['channelId'] ?? null,
                 'title' => $this->cleanUtf8Text($snippet['title'] ?? null),
                 'description' => $this->cleanUtf8Text($snippet['description'] ?? null),
-                'published_at' => $publishedAt ? new \DateTime($publishedAt) : null,
+                'published_at' => $publishedDate,
                 'duration' => $duration,
                 'duration_seconds' => $durationSeconds,
                 'category_id' => $snippet['categoryId'] ?? null,

@@ -1304,7 +1304,8 @@ class ChannelController extends Controller
             $days = $request->get('days'); // Filter by days if provided
 
             $query = YoutubeVideoStat::where('channel_id', $channel->id)
-                ->where('sync_successful', true);
+                ->where('sync_successful', true)
+                ->where('published_at', '>=', '2025-01-01'); // Only videos from 2025
 
             // Filter by date if specified
             if ($days) {
@@ -1456,7 +1457,8 @@ class ChannelController extends Controller
         }
 
         $query = YoutubeVideoStat::where('channel_id', $channel->id)
-            ->where('sync_successful', true);
+            ->where('sync_successful', true)
+            ->where('published_at', '>=', '2025-01-01'); // Only videos from 2025
 
         // Filter by date if specified
         if ($days) {
@@ -1514,6 +1516,7 @@ class ChannelController extends Controller
         // Get top 5 videos by views
         $topVideos = YoutubeVideoStat::where('channel_id', $channel->id)
             ->where('sync_successful', true)
+            ->where('published_at', '>=', '2025-01-01') // Only videos from 2025
             ->orderBy('view_count', 'desc')
             ->limit(5)
             ->get();
@@ -1521,6 +1524,7 @@ class ChannelController extends Controller
         // Get recent videos (last 30 days)
         $recentVideos = YoutubeVideoStat::where('channel_id', $channel->id)
             ->where('sync_successful', true)
+            ->where('published_at', '>=', '2025-01-01') // Only videos from 2025
             ->where('published_at', '>=', now()->subDays(30))
             ->orderBy('published_at', 'desc')
             ->limit(10)
@@ -1986,10 +1990,18 @@ class ChannelController extends Controller
     {
         try {
             $totalChannels = Channel::count();
-            $totalVideos = YoutubeVideoStat::where('sync_successful', true)->count();
-            $totalViews = YoutubeVideoStat::where('sync_successful', true)->sum('view_count');
-            $totalLikes = YoutubeVideoStat::where('sync_successful', true)->sum('like_count');
-            $totalComments = YoutubeVideoStat::where('sync_successful', true)->sum('comment_count');
+            $totalVideos = YoutubeVideoStat::where('sync_successful', true)
+                ->where('published_at', '>=', '2025-01-01') // Only videos from 2025
+                ->count();
+            $totalViews = YoutubeVideoStat::where('sync_successful', true)
+                ->where('published_at', '>=', '2025-01-01') // Only videos from 2025
+                ->sum('view_count');
+            $totalLikes = YoutubeVideoStat::where('sync_successful', true)
+                ->where('published_at', '>=', '2025-01-01') // Only videos from 2025
+                ->sum('like_count');
+            $totalComments = YoutubeVideoStat::where('sync_successful', true)
+                ->where('published_at', '>=', '2025-01-01') // Only videos from 2025
+                ->sum('comment_count');
 
             // Calculate averages
             $avgViewsPerVideo = $totalVideos > 0 ? round($totalViews / $totalVideos) : 0;
@@ -1998,6 +2010,7 @@ class ChannelController extends Controller
 
             // Get recent videos (last 30 days)
             $recentVideos = YoutubeVideoStat::where('sync_successful', true)
+                ->where('published_at', '>=', '2025-01-01') // Only videos from 2025
                 ->where('published_at', '>=', now()->subDays(30))
                 ->count();
 
@@ -2055,7 +2068,8 @@ class ChannelController extends Controller
                 $orderBy = 'view_count';
             }
 
-            $query = YoutubeVideoStat::where('sync_successful', true);
+            $query = YoutubeVideoStat::where('sync_successful', true)
+                ->where('published_at', '>=', '2025-01-01'); // Only videos from 2025
 
             // Filter by date if specified
             if ($days) {
