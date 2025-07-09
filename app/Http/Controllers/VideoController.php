@@ -44,7 +44,7 @@ class VideoController extends Controller
             'description' => 'required|string|max:255',
             'channel_id' => 'required|exists:channels,id',
             'stories_amount' => 'required|integer|min:1|max:100',
-            'characters_amount' => 'required|integer|min:1|max:10000',
+            'characters_amount' => 'required|integer|min:1|max:1000000',
             'language' => 'required|string'
         ], [
             'title.required' => 'El título es requerido',

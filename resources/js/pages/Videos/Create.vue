@@ -134,12 +134,12 @@ const submit = () => {
                         id="characters_amount"
                         v-model="form.characters_amount"
                         min="1"
-                        max="10000"
+                        max="1000000"
                         class="block w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition-colors duration-200 text-gray-700 bg-white"
                         required
                     >
                 </div>
-                <p class="mt-1 text-sm text-gray-500">Número de caracteres por historia (1-10000)</p>
+                <p class="mt-1 text-sm text-gray-500">Número de caracteres por historia (1-1000000)</p>
                 <p v-if="form.errors.characters_amount" class="mt-2 text-sm text-red-600">{{ form.errors.characters_amount }}</p>
             </div>
 
