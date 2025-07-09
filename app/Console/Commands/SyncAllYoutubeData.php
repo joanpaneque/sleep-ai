@@ -136,8 +136,9 @@ class SyncAllYoutubeData extends Command
      */
     private function isRecentlySynced(Channel $channel): bool
     {
-        $latestStat = YoutubeChannelStat::getLatestForChannel($channel->id);
-        return $latestStat && $latestStat->isRecent();
+        // $latestStat = YoutubeChannelStat::getLatestForChannel($channel->id);
+        // return $latestStat && $latestStat->isRecent();
+        return false;
     }
 
     /**
