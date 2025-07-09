@@ -5,6 +5,8 @@ use App\Http\Controllers\VideoController;
 use App\Http\Controllers\StorageController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+// auth controller
+use App\Http\Controllers\Auth\AuthController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -38,6 +40,13 @@ Route::middleware('auth')->group(function () {
     // Disk usage routes
     Route::get('/disk-usage', [StorageController::class, 'index'])->name('disk-usage.index');
     Route::post('/disk-usage/cleanup', [StorageController::class, 'cleanup'])->name('disk-usage.cleanup');
+
+    // login route
+    Route::get('/login', [AuthController::class, 'index'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+
 });
 
 require __DIR__.'/auth.php';
