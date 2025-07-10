@@ -10,6 +10,7 @@ use App\Http\Controllers\ChannelController;
 use App\Http\Controllers\VideoController;
 use App\Http\Controllers\StorageController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AnalyticsController;
 
 // Auth routes
 Route::get('/login', [AuthController::class, 'index'])->name('login');
@@ -68,6 +69,8 @@ Route::middleware('auth')->group(function () {
     Route::get('analytics/global-stats', [ChannelController::class, 'getGlobalStats']);
     Route::get('analytics/all-videos', [ChannelController::class, 'getAllVideos']);
     Route::post('analytics/sync-all', [ChannelController::class, 'triggerGlobalSync']);
+    Route::get('/analytics/daily-stats', [AnalyticsController::class, 'getDailyStats'])
+        ->name('analytics.daily-stats');
 
     Route::post('generate-webhook-token', [ChannelController::class, 'regenerateToken'])->name('generate-webhook-token');
 
