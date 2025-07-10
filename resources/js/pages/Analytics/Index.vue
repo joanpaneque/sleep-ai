@@ -2,6 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '../Layout/AppLayout.vue'
+import { Line, Bar } from 'vue-chartjs'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend)
 
 defineProps({
     success: String,
@@ -14,6 +18,8 @@ const allVideos = ref([])
 const channels = ref([])
 const videosLoading = ref(false)
 const statsLoading = ref(false)
+const dailyStats = ref([])
+const dailyStatsLoading = ref(false)
 
 // Fetch global analytics (all channels combined)
 const fetchGlobalAnalytics = async () => {
@@ -52,6 +58,25 @@ const fetchAllVideos = async () => {
     }
 }
 
+// Fetch daily stats for the last 28 days
+const fetchDailyStats = async () => {
+    dailyStatsLoading.value = true
+    try {
+        const response = await fetch('/analytics/daily-stats')
+        const data = await response.json()
+
+        if (data.success) {
+            dailyStats.value = data.data
+        } else {
+            console.error('Error fetching daily stats:', data.message)
+        }
+    } catch (error) {
+        console.error('Error:', error)
+    } finally {
+        dailyStatsLoading.value = false
+    }
+}
+
 // Trigger global sync for all channels
 const triggerGlobalSync = async () => {
     loading.value = true
@@ -70,6 +95,7 @@ const triggerGlobalSync = async () => {
             // Refresh data after sync
             await fetchGlobalAnalytics()
             await fetchAllVideos()
+            await fetchDailyStats() // Refresh daily stats after sync
         }
     } catch (error) {
         console.error('Error:', error)
@@ -139,9 +165,162 @@ const averageViews = computed(() => {
     return totalVideos.value > 0 ? Math.round(totalViews.value / totalVideos.value) : 0
 })
 
+// Chart data computed property
+const chartData = computed(() => {
+    const labels = dailyStats.value.map(stat => formatDate(stat.date))
+    const views = dailyStats.value.map(stat => stat.total_views)
+
+    return {
+        labels,
+        datasets: [{
+            label: 'Visualizaciones Totales',
+            data: views,
+            borderColor: '#8B5CF6',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#8B5CF6',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#8B5CF6'
+        }]
+    }
+})
+
+// Chart options
+const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        x: {
+            grid: {
+                color: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+                color: 'rgba(255, 255, 255, 0.7)'
+            }
+        },
+        y: {
+            grid: {
+                color: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+                color: 'rgba(255, 255, 255, 0.7)',
+                callback: function(value) {
+                    return formatNumber(value)
+                }
+            }
+        }
+    },
+    plugins: {
+        legend: {
+            display: false
+        },
+        tooltip: {
+            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: 'rgba(139, 92, 246, 0.2)',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+                label: function(context) {
+                    return `${formatNumber(context.raw)} visualizaciones`
+                }
+            }
+        }
+    }
+}
+
+// Chart data computed property for daily views difference
+const dailyDifferenceChartData = computed(() => {
+    const labels = []
+    const viewsDifference = []
+    
+    // Calculate daily difference
+    for (let i = 1; i < dailyStats.value.length; i++) {
+        const currentViews = dailyStats.value[i].total_views
+        const previousViews = dailyStats.value[i - 1].total_views
+        const difference = currentViews - previousViews
+        
+        labels.push(formatDate(dailyStats.value[i].date))
+        viewsDifference.push(difference)
+    }
+
+    return {
+        labels,
+        datasets: [{
+            label: 'Incremento de Visualizaciones',
+            data: viewsDifference,
+            backgroundColor: 'rgba(139, 92, 246, 0.5)',
+            borderColor: 'rgba(139, 92, 246, 1)',
+            borderWidth: 1,
+            borderRadius: 5,
+            hoverBackgroundColor: 'rgba(139, 92, 246, 0.7)'
+        }]
+    }
+})
+
+// Chart options for daily difference
+const dailyDifferenceChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        x: {
+            grid: {
+                color: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+                color: 'rgba(255, 255, 255, 0.7)'
+            }
+        },
+        y: {
+            grid: {
+                color: 'rgba(255, 255, 255, 0.1)',
+                borderColor: 'rgba(255, 255, 255, 0.1)'
+            },
+            ticks: {
+                color: 'rgba(255, 255, 255, 0.7)',
+                callback: function(value) {
+                    return formatNumber(value)
+                }
+            }
+        }
+    },
+    plugins: {
+        legend: {
+            display: false
+        },
+        tooltip: {
+            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: 'rgba(139, 92, 246, 0.2)',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+                label: function(context) {
+                    const value = context.raw
+                    const sign = value >= 0 ? '+' : ''
+                    return `${sign}${formatNumber(value)} visualizaciones`
+                }
+            }
+        }
+    }
+}
+
 onMounted(() => {
     fetchGlobalAnalytics()
     fetchAllVideos()
+    fetchDailyStats()
 })
 </script>
 
@@ -192,6 +371,55 @@ onMounted(() => {
             <!-- Global Statistics -->
             <div class="mb-8">
                 <h2 class="text-2xl font-bold text-white mb-6">Estadísticas Globales</h2>
+
+                <!-- Views Chart -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Total Views Chart -->
+                    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
+                        <h3 class="text-lg font-semibold text-white mb-4">Visualizaciones Totales</h3>
+                        
+                        <!-- Loading State -->
+                        <div v-if="dailyStatsLoading" class="flex justify-center items-center h-[400px]">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                        </div>
+
+                        <!-- No Data State -->
+                        <div v-else-if="dailyStats.length === 0" class="flex flex-col justify-center items-center h-[400px] text-gray-400">
+                            <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6-4l2 2 4-4" />
+                            </svg>
+                            <p class="text-lg">No hay datos disponibles</p>
+                        </div>
+
+                        <!-- Chart -->
+                        <div v-else class="h-[400px]">
+                            <Line :data="chartData" :options="chartOptions" />
+                        </div>
+                    </div>
+
+                    <!-- Daily Difference Chart -->
+                    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
+                        <h3 class="text-lg font-semibold text-white mb-4">Incremento Diario de Visualizaciones</h3>
+                        
+                        <!-- Loading State -->
+                        <div v-if="dailyStatsLoading" class="flex justify-center items-center h-[400px]">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                        </div>
+
+                        <!-- No Data State -->
+                        <div v-else-if="dailyStats.length <= 1" class="flex flex-col justify-center items-center h-[400px] text-gray-400">
+                            <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6-4l2 2 4-4" />
+                            </svg>
+                            <p class="text-lg">Se necesitan al menos 2 días de datos</p>
+                        </div>
+
+                        <!-- Chart -->
+                        <div v-else class="h-[400px]">
+                            <Bar :data="dailyDifferenceChartData" :options="dailyDifferenceChartOptions" />
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Stats Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
