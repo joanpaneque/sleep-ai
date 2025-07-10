@@ -23,12 +23,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhook/*',
         ]);
     })
-    ->withSchedule(function (Schedule $schedule) {
-        // Calcular estadísticas diarias a las 23:59
-        $schedule->command('stats:calculate-daily')
-            ->dailyAt('23:59')
-            ->appendOutputTo(storage_path('logs/daily-stats.log'));
-    })
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
