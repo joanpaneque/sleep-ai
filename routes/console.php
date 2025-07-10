@@ -22,14 +22,6 @@ Schedule::command('stats:calculate-daily')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/stats-calculation.log'));
 
-// Schedule cleanup of old stats (older than 28 days)
-Schedule::command('stats:clean-old')
-    ->daily()
-    ->at('00:00')
-    ->withoutOverlapping()
-    ->runInBackground()
-    ->appendOutputTo(storage_path('logs/stats-cleanup.log'));
-
 // Alternative: Run every minute (more frequent)
 // Schedule::command('youtube:sync-all')
 //     ->everyMinute()
