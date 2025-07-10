@@ -15,6 +15,13 @@ Schedule::command('youtube:sync-all')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/youtube-sync.log'));
 
+// Schedule stats calculation every minute
+Schedule::command('stats:calculate-daily')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/stats-calculation.log'));
+
 // Alternative: Run every minute (more frequent)
 // Schedule::command('youtube:sync-all')
 //     ->everyMinute()

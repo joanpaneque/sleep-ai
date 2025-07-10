@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('daily_channel_stats', function (Blueprint $table) {
             $table->id();
-            $table->date('date');
+            $table->timestamp('datetime');  // Cambiado de date a timestamp
             $table->unsignedBigInteger('total_views')->default(0);
             $table->unsignedInteger('total_channels')->default(0);
             $table->unsignedInteger('total_videos')->default(0);
@@ -21,8 +21,8 @@ return new class extends Migration
             $table->decimal('avg_views_per_channel', 10, 2)->default(0);
             $table->timestamps();
 
-            // Índice para búsquedas rápidas por fecha
-            $table->index('date');
+            // Índice para búsquedas rápidas por datetime
+            $table->index('datetime');
         });
     }
 

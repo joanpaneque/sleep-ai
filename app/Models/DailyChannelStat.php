@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class DailyChannelStat extends Model
 {
     protected $fillable = [
-        'date',
+        'datetime',
         'total_views',
         'total_channels',
         'total_videos',
@@ -16,7 +17,7 @@ class DailyChannelStat extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'datetime' => 'datetime',
         'total_views' => 'integer',
         'total_channels' => 'integer',
         'total_videos' => 'integer',
@@ -29,41 +30,68 @@ class DailyChannelStat extends Model
      */
     public static function getLastDays(int $days = 28)
     {
-        return self::where('date', '>=', now()->subDays($days))
-            ->orderBy('date', 'asc')
+        return self::where('datetime', '>=', now()->subDays($days))
+            ->orderBy('datetime', 'asc')
             ->get();
     }
 
     /**
-     * Calculate and store daily stats
+     * Get stats for specific timeframe with minute-by-minute data
+     */
+    public static function getTimeframeStats(int $hours = 24)
+    {
+        // Obtener todos los datos disponibles
+        return self::orderBy('datetime', 'asc')->get();
+    }
+
+    /**
+     * Calculate and store stats for the current minute
      */
     public static function calculateAndStore(): self
     {
-        $today = now()->startOfDay();
+        $currentTime = now();
         
-        // Get all video stats from today
-        $videoStats = YoutubeVideoStat::where('last_synced_at', '>=', $today)
-            ->get();
+        // Obtener las últimas estadísticas de cada video (usando subquery para obtener el último registro de cada video)
+        $latestVideoStats = YoutubeVideoStat::whereIn('id', function($query) {
+            $query->select(DB::raw('MAX(id)'))
+                ->from('youtube_video_stats')
+                ->groupBy('youtube_video_id');
+        })->get();
 
-        // Calculate stats
-        $totalViews = $videoStats->sum('view_count');
-        $totalVideos = $videoStats->count();
-        $totalChannels = $videoStats->pluck('channel_id')->unique()->count();
+        // Calcular estadísticas
+        $totalViews = $latestVideoStats->sum('view_count');
+        $totalVideos = $latestVideoStats->count();
+        $totalChannels = $latestVideoStats->pluck('channel_id')->unique()->count();
         
         $avgViewsPerVideo = $totalVideos > 0 ? $totalViews / $totalVideos : 0;
         $avgViewsPerChannel = $totalChannels > 0 ? $totalViews / $totalChannels : 0;
 
-        // Create or update today's record
-        return self::updateOrCreate(
-            ['date' => $today->toDateString()],
-            [
-                'total_views' => $totalViews,
-                'total_channels' => $totalChannels,
-                'total_videos' => $totalVideos,
-                'avg_views_per_video' => $avgViewsPerVideo,
-                'avg_views_per_channel' => $avgViewsPerChannel
-            ]
-        );
+        // Crear nuevo registro para este minuto
+        $stats = self::create([
+            'datetime' => $currentTime,
+            'total_views' => $totalViews,
+            'total_channels' => $totalChannels,
+            'total_videos' => $totalVideos,
+            'avg_views_per_video' => $avgViewsPerVideo,
+            'avg_views_per_channel' => $avgViewsPerChannel
+        ]);
+
+        // Log para debugging
+        \Log::info('Stats calculated', [
+            'datetime' => $currentTime->format('Y-m-d H:i:s'),
+            'total_views' => $totalViews,
+            'total_videos' => $totalVideos,
+            'total_channels' => $totalChannels,
+            'videos' => $latestVideoStats->map(function($stat) {
+                return [
+                    'video_id' => $stat->youtube_video_id,
+                    'views' => $stat->view_count,
+                    'last_synced' => $stat->last_synced_at
+                ];
+            })
+        ]);
+
+        return $stats;
     }
 
     /**

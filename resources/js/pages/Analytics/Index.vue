@@ -1,11 +1,11 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '../Layout/AppLayout.vue'
 import { Line, Bar } from 'vue-chartjs'
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler)
 
 defineProps({
     success: String,
@@ -20,6 +20,55 @@ const videosLoading = ref(false)
 const statsLoading = ref(false)
 const dailyStats = ref([])
 const dailyStatsLoading = ref(false)
+const selectedInterval = ref('5m') // Intervalo por defecto: 5 minutos
+let updateInterval = null
+
+// Función para redondear una fecha al intervalo más cercano
+const roundToInterval = (date, intervalMinutes) => {
+    const coeff = 1000 * 60 * intervalMinutes;
+    return new Date(Math.floor(date.getTime() / coeff) * coeff);
+}
+
+// Función para agrupar datos por intervalo
+const groupDataByInterval = (data) => {
+    if (!data || data.length === 0) return [];
+    
+    const intervalMap = {
+        '1m': { minutes: 1, period: 60 },      // 1 minuto, últimos 60 minutos
+        '5m': { minutes: 5, period: 60 },      // 5 minutos, últimos 60 minutos
+        '1h': { minutes: 60, period: 1440 },   // 1 hora, últimas 24 horas
+        '6h': { minutes: 360, period: 40320 }, // 6 horas, últimos 28 días
+        '1d': { minutes: 1440, period: 40320 } // 1 día, últimos 28 días
+    };
+
+    const { minutes, period } = intervalMap[selectedInterval.value];
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - period * 60000); // Convertir periodo a milisegundos
+
+    // Filtrar datos dentro del periodo
+    const filteredData = data.filter(stat => new Date(stat.datetime) >= cutoffTime);
+    
+    const groupedData = new Map();
+
+    // Ordenar datos por fecha
+    const sortedData = [...filteredData].sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+
+    sortedData.forEach(stat => {
+        const date = new Date(stat.datetime);
+        const roundedDate = roundToInterval(date, minutes);
+        const key = roundedDate.getTime();
+
+        // Guardar solo el último valor para cada intervalo
+        groupedData.set(key, {
+            datetime: roundedDate,
+            total_views: stat.total_views
+        });
+    });
+
+    // Convertir el Map a array y ordenar
+    return Array.from(groupedData.values())
+        .sort((a, b) => a.datetime - b.datetime);
+}
 
 // Fetch global analytics (all channels combined)
 const fetchGlobalAnalytics = async () => {
@@ -58,22 +107,42 @@ const fetchAllVideos = async () => {
     }
 }
 
-// Fetch daily stats for the last 28 days
+// Format datetime
+const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
+// Format datetime with full info for tooltips
+const formatDateTimeTooltip = (dateString) => {
+    return new Date(dateString).toLocaleString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: 'numeric',
+        month: 'short'
+    })
+}
+
+// Fetch daily stats for the last 24 hours with minute-by-minute data
 const fetchDailyStats = async () => {
-    dailyStatsLoading.value = true
+    dailyStatsLoading.value = true;
     try {
-        const response = await fetch('/analytics/daily-stats')
-        const data = await response.json()
+        // Ya no necesitamos el parámetro timeframe porque queremos todos los datos
+        const response = await fetch('/analytics/daily-stats');
+        const data = await response.json();
 
         if (data.success) {
-            dailyStats.value = data.data
+            console.log('Datos recibidos de la API:', data.data);
+            dailyStats.value = data.data;
         } else {
-            console.error('Error fetching daily stats:', data.message)
+            console.error('Error fetching daily stats:', data.message);
         }
     } catch (error) {
-        console.error('Error:', error)
+        console.error('Error:', error);
     } finally {
-        dailyStatsLoading.value = false
+        dailyStatsLoading.value = false;
     }
 }
 
@@ -165,10 +234,30 @@ const averageViews = computed(() => {
     return totalVideos.value > 0 ? Math.round(totalViews.value / totalVideos.value) : 0
 })
 
-// Chart data computed property
+// Chart data computed property con agrupación por intervalo
 const chartData = computed(() => {
-    const labels = dailyStats.value.map(stat => formatDate(stat.date))
-    const views = dailyStats.value.map(stat => stat.total_views)
+    const groupedData = groupDataByInterval(dailyStats.value);
+    console.log('Datos agrupados:', groupedData);
+
+    const labels = groupedData.map(stat => {
+        const date = new Date(stat.datetime);
+        // Formato de etiqueta según el intervalo
+        if (selectedInterval.value === '1d' || selectedInterval.value === '6h') {
+            return date.toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else {
+            return date.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+    });
+
+    const views = groupedData.map(stat => stat.total_views);
 
     return {
         labels,
@@ -180,8 +269,8 @@ const chartData = computed(() => {
             borderWidth: 2,
             fill: true,
             tension: 0.4,
-            pointRadius: 4,
-            pointHoverRadius: 6,
+            pointRadius: 2,
+            pointHoverRadius: 4,
             pointBackgroundColor: '#8B5CF6',
             pointBorderColor: '#fff',
             pointHoverBackgroundColor: '#fff',
@@ -201,7 +290,11 @@ const chartOptions = {
                 borderColor: 'rgba(255, 255, 255, 0.1)'
             },
             ticks: {
-                color: 'rgba(255, 255, 255, 0.7)'
+                color: 'rgba(255, 255, 255, 0.7)',
+                maxRotation: 45,
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: selectedInterval.value === '1m' ? 30 : 20 // Más puntos para intervalo de 1 minuto
             }
         },
         y: {
@@ -230,33 +323,109 @@ const chartOptions = {
             padding: 12,
             displayColors: false,
             callbacks: {
+                title: function(context) {
+                    const date = new Date(groupDataByInterval(dailyStats.value)[context[0].dataIndex].datetime);
+                    if (selectedInterval.value === '1d' || selectedInterval.value === '6h') {
+                        return date.toLocaleString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    } else {
+                        return date.toLocaleString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                },
                 label: function(context) {
-                    return `${formatNumber(context.raw)} visualizaciones`
+                    const exactViews = context.raw.toLocaleString('es-ES');
+                    const formattedViews = formatNumber(context.raw);
+                    return `${exactViews} visualizaciones (${formattedViews})`;
                 }
             }
         }
     }
 }
 
-// Chart data computed property for daily views difference
+// Daily difference chart data
 const dailyDifferenceChartData = computed(() => {
-    const labels = []
-    const viewsDifference = []
-    
-    // Calculate daily difference
-    for (let i = 1; i < dailyStats.value.length; i++) {
-        const currentViews = dailyStats.value[i].total_views
-        const previousViews = dailyStats.value[i - 1].total_views
-        const difference = currentViews - previousViews
-        
-        labels.push(formatDate(dailyStats.value[i].date))
-        viewsDifference.push(difference)
+    console.log('Datos originales:', dailyStats.value);
+
+    if (!dailyStats.value || dailyStats.value.length === 0) {
+        console.log('No hay datos disponibles');
+        return {
+            labels: [],
+            datasets: [{
+                label: 'Incremento de Visualizaciones por Día',
+                data: [],
+                backgroundColor: 'rgba(139, 92, 246, 0.5)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 1,
+                borderRadius: 5,
+                hoverBackgroundColor: 'rgba(139, 92, 246, 0.7)'
+            }]
+        }
     }
+
+    // Agrupar datos por día (usando solo la fecha, sin la hora)
+    const dailyData = {};
+    
+    // Primero encontramos el último valor de cada día
+    dailyStats.value.forEach(stat => {
+        const date = new Date(stat.datetime).toISOString().split('T')[0];
+        
+        if (!dailyData[date] || new Date(stat.datetime) > new Date(dailyData[date].datetime)) {
+            dailyData[date] = {
+                views: stat.total_views,
+                datetime: stat.datetime
+            };
+        }
+    });
+
+    console.log('Datos agrupados por día:', dailyData);
+
+    // Convertir a arrays ordenados por fecha
+    const sortedDates = Object.keys(dailyData).sort();
+    console.log('Fechas ordenadas:', sortedDates);
+
+    const labels = [];
+    const viewsDifference = [];
+
+    // Calcular diferencias diarias
+    for (let i = 1; i < sortedDates.length; i++) {
+        const currentViews = dailyData[sortedDates[i]].views;
+        const previousViews = dailyData[sortedDates[i - 1]].views;
+        const difference = currentViews - previousViews;
+        
+        console.log(`Calculando diferencia para ${sortedDates[i]}:`, {
+            currentViews,
+            previousViews,
+            difference
+        });
+
+        // Formatear la fecha para la etiqueta
+        const formattedDate = new Date(sortedDates[i]).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        labels.push(formattedDate);
+        viewsDifference.push(difference);
+    }
+
+    console.log('Labels finales:', labels);
+    console.log('Diferencias finales:', viewsDifference);
 
     return {
         labels,
         datasets: [{
-            label: 'Incremento de Visualizaciones',
+            label: 'Incremento de Visualizaciones por Día',
             data: viewsDifference,
             backgroundColor: 'rgba(139, 92, 246, 0.5)',
             borderColor: 'rgba(139, 92, 246, 1)',
@@ -267,7 +436,7 @@ const dailyDifferenceChartData = computed(() => {
     }
 })
 
-// Chart options for daily difference
+// Daily difference chart options
 const dailyDifferenceChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -278,7 +447,11 @@ const dailyDifferenceChartOptions = {
                 borderColor: 'rgba(255, 255, 255, 0.1)'
             },
             ticks: {
-                color: 'rgba(255, 255, 255, 0.7)'
+                color: 'rgba(255, 255, 255, 0.7)',
+                maxRotation: 45,
+                minRotation: 45,
+                autoSkip: true,
+                maxTicksLimit: 10
             }
         },
         y: {
@@ -291,7 +464,8 @@ const dailyDifferenceChartOptions = {
                 callback: function(value) {
                     return formatNumber(value)
                 }
-            }
+            },
+            beginAtZero: true // Asegurar que el eje Y comience en 0
         }
     },
     plugins: {
@@ -307,6 +481,9 @@ const dailyDifferenceChartOptions = {
             padding: 12,
             displayColors: false,
             callbacks: {
+                title: function(context) {
+                    return context[0].label
+                },
                 label: function(context) {
                     const value = context.raw
                     const sign = value >= 0 ? '+' : ''
@@ -321,6 +498,17 @@ onMounted(() => {
     fetchGlobalAnalytics()
     fetchAllVideos()
     fetchDailyStats()
+
+    // Actualizar datos cada minuto
+    updateInterval = setInterval(() => {
+        fetchDailyStats()
+    }, 60000)
+})
+
+onUnmounted(() => {
+    if (updateInterval) {
+        clearInterval(updateInterval)
+    }
 })
 </script>
 
@@ -376,7 +564,41 @@ onMounted(() => {
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                     <!-- Total Views Chart -->
                     <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
-                        <h3 class="text-lg font-semibold text-white mb-4">Visualizaciones Totales</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-white">Visualizaciones Totales</h3>
+                                <p class="text-sm text-gray-400">
+                                    {{ selectedInterval === '1m' || selectedInterval === '5m' 
+                                        ? 'Últimos 60 minutos' 
+                                        : selectedInterval === '1h' 
+                                            ? 'Últimas 24 horas'
+                                            : 'Últimos 28 días' }}
+                                </p>
+                            </div>
+                            
+                            <!-- Interval Buttons -->
+                            <div class="flex space-x-2">
+                                <button
+                                    v-for="(label, interval) in {
+                                        '1m': 'Cada 1m',
+                                        '5m': 'Cada 5m',
+                                        '1h': 'Cada 1h',
+                                        '6h': 'Cada 6h',
+                                        '1d': 'Cada 1d'
+                                    }"
+                                    :key="interval"
+                                    @click="selectedInterval = interval"
+                                    :class="[
+                                        'px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200',
+                                        selectedInterval === interval
+                                            ? 'bg-purple-600 text-white'
+                                            : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
+                                    ]"
+                                >
+                                    {{ label }}
+                                </button>
+                            </div>
+                        </div>
                         
                         <!-- Loading State -->
                         <div v-if="dailyStatsLoading" class="flex justify-center items-center h-[400px]">
