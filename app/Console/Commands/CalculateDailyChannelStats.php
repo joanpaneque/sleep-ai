@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\DailyChannelStat;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class CalculateDailyChannelStats extends Command
 {
@@ -13,11 +14,13 @@ class CalculateDailyChannelStats extends Command
     public function handle()
     {
         $this->info('Calculating daily channel statistics...');
+        Log::info('Calculating daily channel statistics...');
 
         try {
             $stats = DailyChannelStat::calculateAndStore();
             
             $this->info("Statistics calculated successfully for {$stats->date}:");
+            Log::info("Statistics calculated successfully for {$stats->date}:");
             $this->table(
                 ['Metric', 'Value'],
                 [
