@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\N8NService;
 use Illuminate\Console\Command;
 
 class RunQueue extends Command
