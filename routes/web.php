@@ -101,6 +101,24 @@ Route::prefix('api')->group(function () {
     // Disk usage routes
     Route::get('/disk-usage', [StorageController::class, 'index'])->name('disk-usage.index');
     Route::post('/disk-usage/cleanup', [StorageController::class, 'cleanup'])->name('disk-usage.cleanup');
+
+    // YouTube Analytics API routes
+    Route::prefix('channels/{channel}')->group(function () {
+        Route::get('analytics/daily', [AnalyticsController::class, 'getDailyAnalytics']);
+        Route::get('analytics/geographic', [AnalyticsController::class, 'getGeographicAnalytics']);
+        Route::get('analytics/devices', [AnalyticsController::class, 'getDeviceAnalytics']);
+        Route::get('analytics/traffic-sources', [AnalyticsController::class, 'getTrafficSourceAnalytics']);
+        Route::get('analytics/demographics', [AnalyticsController::class, 'getDemographicAnalytics']);
+        Route::get('analytics/top-videos', [AnalyticsController::class, 'getTopVideosAnalytics']);
+        Route::get('analytics/summary', [AnalyticsController::class, 'getAnalyticsSummary']);
+        
+        // Video-specific analytics
+        Route::get('videos/{videoId}/analytics', [AnalyticsController::class, 'getVideoAnalytics']);
+        Route::get('videos/{videoId}/traffic-sources', [AnalyticsController::class, 'getVideoTrafficSources']);
+        Route::get('videos/{videoId}/devices', [AnalyticsController::class, 'getVideoDeviceBreakdown']);
+        Route::get('videos/{videoId}/geographic', [AnalyticsController::class, 'getVideoGeographicBreakdown']);
+        Route::get('videos/{videoId}/audience-retention', [AnalyticsController::class, 'getVideoAudienceRetention']);
+    });
 });
 
 // Webhook routes (outside middleware for external access)

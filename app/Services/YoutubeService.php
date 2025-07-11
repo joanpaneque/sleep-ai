@@ -9,6 +9,7 @@ use Exception;
 class YoutubeService
 {
     private const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
+    private const YOUTUBE_ANALYTICS_BASE_URL = 'https://youtubeanalytics.googleapis.com/v2';
     private const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
     /**
@@ -785,5 +786,526 @@ class YoutubeService
         if ($engagementRate >= 0.5) return 20;
 
         return 10;
+    }
+
+    /**
+     * Get comprehensive channel analytics with multiple metrics
+     */
+    public function getComprehensiveChannelAnalytics(Channel $channel, string $startDate, string $endDate, array $dimensions = ['day'], array $metrics = ['views', 'estimatedMinutesWatched', 'likes', 'comments', 'subscribersGained']): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => implode(',', $metrics),
+            'dimensions' => implode(',', $dimensions),
+            'sort' => 'day',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get channel analytics by country (geographic breakdown)
+     */
+    public function getChannelAnalyticsByCountry(Channel $channel, string $startDate, string $endDate, array $metrics = ['views', 'estimatedMinutesWatched', 'subscribersGained']): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => implode(',', $metrics),
+            'dimensions' => 'country',
+            'sort' => '-views',
+            'maxResults' => 25,
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get channel analytics by traffic source
+     */
+    public function getChannelAnalyticsByTrafficSource(Channel $channel, string $startDate, string $endDate, array $metrics = ['views', 'estimatedMinutesWatched']): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => implode(',', $metrics),
+            'dimensions' => 'insightTrafficSourceType',
+            'sort' => '-views',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get detailed traffic source analytics
+     */
+    public function getDetailedTrafficSourceAnalytics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched,averageViewDuration',
+            'dimensions' => 'insightTrafficSourceType,insightTrafficSourceDetail',
+            'sort' => '-views',
+            'maxResults' => 50,
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get channel analytics by device type and operating system
+     */
+    public function getChannelAnalyticsByDevice(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched,averageViewDuration',
+            'dimensions' => 'deviceType,operatingSystem',
+            'sort' => '-views',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get viewer demographics (age and gender)
+     */
+    public function getViewerDemographics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'viewerPercentage',
+            'dimensions' => 'ageGroup,gender',
+            'sort' => '-viewerPercentage',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get playback location analytics
+     */
+    public function getPlaybackLocationAnalytics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched',
+            'dimensions' => 'insightPlaybackLocationType,insightPlaybackLocationDetail',
+            'sort' => '-views',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get subscriber analytics (gained vs lost)
+     */
+    public function getSubscriberAnalytics(Channel $channel, string $startDate, string $endDate, string $dimension = 'day'): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'subscribersGained,subscribersLost',
+            'dimensions' => $dimension,
+            'sort' => $dimension,
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get engagement analytics (likes, comments, shares)
+     */
+    public function getEngagementAnalytics(Channel $channel, string $startDate, string $endDate, string $dimension = 'day'): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'likes,dislikes,comments,shares,videosAddedToPlaylists,videosRemovedFromPlaylists',
+            'dimensions' => $dimension,
+            'sort' => $dimension,
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get revenue analytics (requires monetary scope)
+     */
+    public function getRevenueAnalytics(Channel $channel, string $startDate, string $endDate, string $dimension = 'day', string $currency = 'USD'): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'estimatedRevenue,estimatedAdRevenue,grossRevenue,cpm,monetizedPlaybacks,adImpressions',
+            'dimensions' => $dimension,
+            'currency' => $currency,
+            'sort' => $dimension,
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get top videos by views
+     */
+    public function getTopVideosByViews(Channel $channel, string $startDate, string $endDate, int $maxResults = 10): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched,averageViewDuration,likes,comments',
+            'dimensions' => 'video',
+            'sort' => '-views',
+            'maxResults' => $maxResults,
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get audience retention data for a specific video
+     */
+    public function getVideoAudienceRetention(Channel $channel, string $videoId): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'filters' => 'video==' . $videoId,
+            'metrics' => 'audienceWatchRatio,relativeRetentionPerformance',
+            'dimensions' => 'elapsedVideoTimeRatio',
+            'sort' => 'elapsedVideoTimeRatio',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get playlist analytics
+     */
+    public function getPlaylistAnalytics(Channel $channel, string $startDate, string $endDate, string $playlistId = null): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'playlistViews,playlistStarts,averageTimeInPlaylist,playlistSaves',
+            'dimensions' => 'playlist',
+            'sort' => '-playlistViews',
+            'access_token' => $channel->google_access_token
+        ];
+
+        if ($playlistId) {
+            $params['filters'] = 'playlist==' . $playlistId;
+        }
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get search terms that led to channel videos
+     */
+    public function getSearchTermsAnalytics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched',
+            'dimensions' => 'insightTrafficSourceDetail',
+            'filters' => 'insightTrafficSourceType==YT_SEARCH',
+            'sort' => '-views',
+            'maxResults' => 25,
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get sharing platform analytics
+     */
+    public function getSharingPlatformAnalytics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'shares',
+            'dimensions' => 'sharingService',
+            'sort' => '-shares',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get card and annotation analytics
+     */
+    public function getCardAnnotationAnalytics(Channel $channel, string $startDate, string $endDate, string $videoId = null): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'cardImpressions,cardClicks,cardClickRate,annotationImpressions,annotationClicks,annotationClickThroughRate',
+            'access_token' => $channel->google_access_token
+        ];
+
+        if ($videoId) {
+            $params['filters'] = 'video==' . $videoId;
+            $params['dimensions'] = 'video';
+        }
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get live streaming analytics
+     */
+    public function getLiveStreamAnalytics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched,averageConcurrentViewers,peakConcurrentViewers',
+            'filters' => 'liveOrOnDemand==LIVE',
+            'dimensions' => 'day',
+            'sort' => 'day',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get subscriber status analytics
+     */
+    public function getSubscriberStatusAnalytics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched,averageViewDuration',
+            'dimensions' => 'subscribedStatus',
+            'sort' => '-views',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get YouTube Premium (Red) analytics
+     */
+    public function getYouTubePremiumAnalytics(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'redViews,estimatedRedMinutesWatched,estimatedRedPartnerRevenue',
+            'dimensions' => 'day',
+            'sort' => 'day',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get comprehensive video analytics for a specific video
+     */
+    public function getComprehensiveVideoAnalytics(Channel $channel, string $videoId, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'filters' => 'video==' . $videoId,
+            'metrics' => 'views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,likes,dislikes,comments,shares,subscribersGained,subscribersLost',
+            'dimensions' => 'day',
+            'sort' => 'day',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get monthly analytics summary
+     */
+    public function getMonthlyAnalyticsSummary(Channel $channel, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'metrics' => 'views,estimatedMinutesWatched,subscribersGained,subscribersLost,likes,comments,shares',
+            'dimensions' => 'month',
+            'sort' => 'month',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
+    }
+
+    /**
+     * Get performance comparison between videos
+     */
+    public function getVideoPerformanceComparison(Channel $channel, array $videoIds, string $startDate, string $endDate): ?array
+    {
+        if (!$this->ensureValidToken($channel)) {
+            return null;
+        }
+
+        $url = self::YOUTUBE_ANALYTICS_BASE_URL . '/reports';
+        $params = [
+            'ids' => 'channel==MINE',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'filters' => 'video==' . implode(',', $videoIds),
+            'metrics' => 'views,estimatedMinutesWatched,averageViewDuration,likes,comments,subscribersGained',
+            'dimensions' => 'video',
+            'sort' => '-views',
+            'access_token' => $channel->google_access_token
+        ];
+
+        return $this->makeApiRequest($url, $params);
     }
 }

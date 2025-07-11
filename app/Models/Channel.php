@@ -88,4 +88,40 @@ class Channel extends Model
                $this->google_access_token_expires_at !== null &&
                $this->google_access_token_expires_at <= now();
     }
+
+    /**
+     * Get YouTube analytics reports for this channel
+     */
+    public function youtubeAnalyticsReports()
+    {
+        return $this->hasMany(YoutubeAnalyticsReport::class);
+    }
+
+    /**
+     * Get the latest YouTube analytics report for this channel
+     */
+    public function latestYoutubeAnalyticsReport()
+    {
+        return $this->hasOne(YoutubeAnalyticsReport::class)
+            ->where('report_type', 'daily')
+            ->latest('report_date');
+    }
+
+    /**
+     * Get YouTube video analytics for this channel
+     */
+    public function youtubeVideoAnalytics()
+    {
+        return $this->hasMany(YoutubeVideoAnalytics::class);
+    }
+
+    /**
+     * Get the latest YouTube video analytics for this channel
+     */
+    public function latestYoutubeVideoAnalytics()
+    {
+        return $this->hasMany(YoutubeVideoAnalytics::class)
+            ->where('report_type', 'daily')
+            ->latest('report_date');
+    }
 }
