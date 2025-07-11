@@ -10,7 +10,7 @@ Artisan::command('inspire', function () {
 
 // Schedule YouTube data synchronization
 Schedule::command('youtube:sync-all')
-    ->everyFiveMinutes()
+    ->everyMinute()
     ->withoutOverlapping()
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/youtube-sync.log'));
