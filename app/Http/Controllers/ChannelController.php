@@ -2261,19 +2261,29 @@ class ChannelController extends Controller
     public function getDailyStats(Request $request)
     {
         try {
-            // Get all daily analytics reports from all channels
-            $dailyStats = \App\Models\DailyChannelStat::orderBy('datetime')
-                ->get()
-                ->map(function ($stat) {
-                    return [
-                        'datetime' => $stat->datetime->toISOString(),
-                        'total_views' => $stat->total_views ?? 0
-                    ];
-                });
+            // Get selected channels from request
+            $selectedChannels = $request->get('channels', []);
+            
+            if (empty($selectedChannels)) {
+                // If no channels selected, get aggregated stats for all channels
+                $dailyStats = \App\Models\DailyChannelStat::getAggregatedStats();
+            } else {
+                // Get aggregated stats for selected channels only
+                $dailyStats = \App\Models\DailyChannelStat::getAggregatedStats($selectedChannels);
+            }
+
+            // Format the data for the frontend
+            $formattedStats = $dailyStats->map(function ($stat) {
+                return [
+                    'datetime' => $stat->datetime,
+                    'total_views' => (int) $stat->total_views,
+                    'channel_id' => null // For aggregated data
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'data' => $dailyStats
+                'data' => $formattedStats
             ]);
 
         } catch (\Exception $e) {
