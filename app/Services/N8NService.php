@@ -9,7 +9,7 @@ use App\Models\Video;
 class N8NService {
 
 
-    private static $serverURL = "https://n8n.sleepai.online/webhook/process-video";
+    private static $serverURL = "https://n8n.sleepai.online/webhook-test/process-video";
 
     public static $languageVoices = [
         'en' => [
@@ -36,6 +36,11 @@ class N8NService {
             "language" => "pt-BR",
             "voice" => "pt-BR-Chirp3-HD-Charon",
             "language_name" => "Português (Brazil)"
+        ],
+        'en-UHD' => [
+            "language" => "en-UHD",
+            "voice" => "en-UHD",
+            "language_name" => "English (Ultra HD)"
         ],
     ];
 
