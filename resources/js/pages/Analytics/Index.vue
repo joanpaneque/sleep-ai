@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '../Layout/AppLayout.vue'
 import { Line, Bar } from 'vue-chartjs'
@@ -21,6 +21,13 @@ const statsLoading = ref(false)
 const dailyStats = ref([])
 const dailyStatsLoading = ref(false)
 const selectedInterval = ref('5m') // Intervalo por defecto: 5 minutos
+const selectedDifferenceInterval = ref('1h') // Intervalo por defecto: 1 hora (cambiado de 5m a 1h)
+const comparisonMode = ref('none') // 'none', 'previous_period', 'same_period_last_week'
+const comparisonData = ref(null)
+const selectedChannels = ref([]) // Para filtros de canal
+const viewMode = ref('grid') // 'grid' o 'compact' para el modo de vista
+const sortBy = ref('views') // Para ordenamiento
+const sortOrder = ref('desc') // Para dirección del ordenamiento
 let updateInterval = null
 
 // Función para redondear una fecha al intervalo más cercano
@@ -29,28 +36,132 @@ const roundToInterval = (date, intervalMinutes) => {
     return new Date(Math.floor(date.getTime() / coeff) * coeff);
 }
 
+// Función para obtener el período de comparación
+const getComparisonPeriod = (date, mode) => {
+    if (mode !== 'previous_period') return date;
+
+    const newDate = new Date(date)
+    // Restar el período actual
+    const intervalMap = {
+        '1m': 60 * 60 * 1000,        // 1 hora en ms
+        '5m': 24 * 60 * 60 * 1000,   // 24 horas en ms
+        '1h': 48 * 60 * 60 * 1000,   // 48 horas en ms
+        '6h': 48 * 60 * 60 * 1000,   // 48 horas en ms
+        '1d': 28 * 24 * 60 * 60 * 1000 // 28 días en ms
+    }
+    return new Date(newDate.getTime() - intervalMap[selectedInterval.value])
+}
+
 // Función para agrupar datos por intervalo
-const groupDataByInterval = (data) => {
+const groupDataByInterval = (data, isComparison = false) => {
     if (!data || data.length === 0) return [];
     
     const intervalMap = {
         '1m': { minutes: 1, period: 60 },      // 1 minuto, últimos 60 minutos
-        '5m': { minutes: 5, period: 60 },      // 5 minutos, últimos 60 minutos
-        '1h': { minutes: 60, period: 1440 },   // 1 hora, últimas 24 horas
-        '6h': { minutes: 360, period: 40320 }, // 6 horas, últimos 28 días
+        '5m': { minutes: 5, period: 1440 },    // 5 minutos, últimas 24 horas
+        '1h': { minutes: 60, period: 2880 },   // 1 hora, últimas 48 horas
+        '6h': { minutes: 360, period: 2880 },  // 6 horas, últimas 48 horas
         '1d': { minutes: 1440, period: 40320 } // 1 día, últimos 28 días
     };
 
     const { minutes, period } = intervalMap[selectedInterval.value];
     const now = new Date();
-    const cutoffTime = new Date(now.getTime() - period * 60000); // Convertir periodo a milisegundos
+    const periodEnd = isComparison ? getComparisonPeriod(now, comparisonMode.value) : now;
+    const periodStart = new Date(periodEnd.getTime() - period * 60000);
 
     // Filtrar datos dentro del periodo
-    const filteredData = data.filter(stat => new Date(stat.datetime) >= cutoffTime);
+    const filteredData = data.filter(stat => {
+        const statDate = new Date(stat.datetime);
+        return statDate >= periodStart && statDate <= periodEnd;
+    });
     
+    // Crear array de puntos de tiempo para el período completo
+    const timePoints = [];
+    let currentTime = new Date(periodStart);
+    while (currentTime <= periodEnd) {
+        timePoints.push(roundToInterval(new Date(currentTime), minutes));
+        currentTime = new Date(currentTime.getTime() + minutes * 60000);
+    }
+
+    // Crear Map con todos los puntos de tiempo inicializados
+    const groupedData = new Map();
+    timePoints.forEach(time => {
+        groupedData.set(time.getTime(), {
+            datetime: time,
+            total_views: null
+        });
+    });
+
+    // Llenar con datos reales donde existan
+    filteredData.forEach(stat => {
+        const date = new Date(stat.datetime);
+        const roundedDate = roundToInterval(date, minutes);
+        const key = roundedDate.getTime();
+
+        if (groupedData.has(key)) {
+            groupedData.set(key, {
+                datetime: roundedDate,
+                total_views: stat.total_views
+            });
+        }
+    });
+
+    // Convertir a array y rellenar valores nulos con interpolación
+    const sortedData = Array.from(groupedData.values())
+        .sort((a, b) => a.datetime - b.datetime);
+
+    // Interpolación lineal para valores faltantes
+    let lastValidValue = null;
+    for (let i = 0; i < sortedData.length; i++) {
+        if (sortedData[i].total_views === null) {
+            // Buscar el próximo valor válido
+            let nextValidIndex = i + 1;
+            while (nextValidIndex < sortedData.length && sortedData[nextValidIndex].total_views === null) {
+                nextValidIndex++;
+            }
+
+            if (lastValidValue !== null && nextValidIndex < sortedData.length) {
+                // Interpolación lineal
+                const nextValue = sortedData[nextValidIndex].total_views;
+                const totalSteps = nextValidIndex - i + 1;
+                const step = (nextValue - lastValidValue) / totalSteps;
+                sortedData[i].total_views = Math.round(lastValidValue + step * (i - (nextValidIndex - totalSteps)));
+            } else if (lastValidValue !== null) {
+                // Si no hay próximo valor, usar el último válido
+                sortedData[i].total_views = lastValidValue;
+            } else if (nextValidIndex < sortedData.length) {
+                // Si no hay valor anterior, usar el próximo válido
+                sortedData[i].total_views = sortedData[nextValidIndex].total_views;
+            } else {
+                // Si no hay valores válidos, usar 0 o el último valor conocido
+                sortedData[i].total_views = lastValidValue || 0;
+            }
+        }
+        if (sortedData[i].total_views !== null) {
+            lastValidValue = sortedData[i].total_views;
+        }
+    }
+
+    return sortedData;
+}
+
+// Función para agrupar datos por intervalo para diferencias
+const groupDifferenceDataByInterval = (data) => {
+    if (!data || data.length === 0) return [];
+    
+    const intervalMap = {
+        '1h': { minutes: 60, period: 2880 },   // 1 hora, últimas 48 horas
+        '6h': { minutes: 360, period: 2880 },  // 6 horas, últimas 48 horas
+        '1d': { minutes: 1440, period: 40320 } // 1 día, últimos 28 días
+    };
+
+    const { minutes, period } = intervalMap[selectedDifferenceInterval.value];
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - period * 60000);
+
+    const filteredData = data.filter(stat => new Date(stat.datetime) >= cutoffTime);
     const groupedData = new Map();
 
-    // Ordenar datos por fecha
     const sortedData = [...filteredData].sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
 
     sortedData.forEach(stat => {
@@ -58,14 +169,12 @@ const groupDataByInterval = (data) => {
         const roundedDate = roundToInterval(date, minutes);
         const key = roundedDate.getTime();
 
-        // Guardar solo el último valor para cada intervalo
         groupedData.set(key, {
             datetime: roundedDate,
             total_views: stat.total_views
         });
     });
 
-    // Convertir el Map a array y ordenar
     return Array.from(groupedData.values())
         .sort((a, b) => a.datetime - b.datetime);
 }
@@ -151,8 +260,14 @@ const formatDateTimeTooltip = (dateString) => {
 const fetchDailyStats = async () => {
     dailyStatsLoading.value = true;
     try {
-        // Ya no necesitamos el parámetro timeframe porque queremos todos los datos
-        const response = await fetch('/analytics/daily-stats', {
+        // Construir la URL con los canales seleccionados si hay alguno
+        let url = '/analytics/daily-stats';
+        if (selectedChannels.value.length > 0) {
+            const channelParams = selectedChannels.value.map(id => `channels[]=${id}`).join('&');
+            url += `?${channelParams}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include',
             headers: {
                 'Accept': 'application/json',
@@ -276,14 +391,15 @@ const averageViews = computed(() => {
 
 // Chart data computed property con agrupación por intervalo
 const chartData = computed(() => {
-    const groupedData = groupDataByInterval(dailyStats.value);
-    console.log('Datos agrupados:', groupedData);
+    const currentData = groupDataByInterval(dailyStats.value);
+    const comparisonGroupedData = comparisonMode.value !== 'none' 
+        ? groupDataByInterval(dailyStats.value, true)
+        : null;
 
-    const labels = groupedData.map(stat => {
+    const labels = currentData.map(stat => {
         const date = new Date(stat.datetime);
-        // Formato de etiqueta según el intervalo
         if (selectedInterval.value === '1d' || selectedInterval.value === '6h') {
-            return date.toLocaleDateString('es-ES', {
+            return date.toLocaleString('es-ES', {
                 day: '2-digit',
                 month: '2-digit',
                 hour: '2-digit',
@@ -297,32 +413,100 @@ const chartData = computed(() => {
         }
     });
 
-    const views = groupedData.map(stat => stat.total_views);
+    const datasets = [{
+        label: 'Visualizaciones Totales',
+        data: currentData.map(stat => stat.total_views),
+        borderColor: '#8B5CF6',
+        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        pointBackgroundColor: '#8B5CF6',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#8B5CF6'
+    }];
 
-    return {
-        labels,
-        datasets: [{
-            label: 'Visualizaciones Totales',
-            data: views,
-            borderColor: '#8B5CF6',
-            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    if (comparisonGroupedData) {
+        datasets.push({
+            label: comparisonMode.value === 'previous_period' ? 'Período Anterior' : 'Misma Semana Anterior',
+            data: comparisonGroupedData.map(stat => stat.total_views),
+            borderColor: '#60A5FA',
+            backgroundColor: 'rgba(96, 165, 250, 0.1)',
             borderWidth: 2,
             fill: true,
             tension: 0.4,
             pointRadius: 2,
             pointHoverRadius: 4,
-            pointBackgroundColor: '#8B5CF6',
+            pointBackgroundColor: '#60A5FA',
             pointBorderColor: '#fff',
             pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: '#8B5CF6'
-        }]
+            pointHoverBorderColor: '#60A5FA'
+        });
     }
+
+    return {
+        labels,
+        datasets
+    }
+})
+
+// Computed para filtrar videos por canal seleccionado
+const filteredVideos = computed(() => {
+    if (selectedChannels.value.length === 0) return allVideos.value;
+    return allVideos.value.filter(video => selectedChannels.value.includes(video.channel_id));
+})
+
+// Computed para ordenar videos
+const sortedVideos = computed(() => {
+    return [...filteredVideos.value].sort((a, b) => {
+        let aValue, bValue;
+        
+        switch (sortBy.value) {
+            case 'views':
+                aValue = a.statistics?.view_count || 0;
+                bValue = b.statistics?.view_count || 0;
+                break;
+            case 'likes':
+                aValue = a.statistics?.like_count || 0;
+                bValue = b.statistics?.like_count || 0;
+                break;
+            case 'comments':
+                aValue = a.statistics?.comment_count || 0;
+                bValue = b.statistics?.comment_count || 0;
+                break;
+            case 'date':
+                aValue = new Date(a.published_at).getTime();
+                bValue = new Date(b.published_at).getTime();
+                break;
+            case 'performance':
+                aValue = a.metrics?.performance_score || 0;
+                bValue = b.metrics?.performance_score || 0;
+                break;
+            default:
+                aValue = a.statistics?.view_count || 0;
+                bValue = b.statistics?.view_count || 0;
+        }
+
+        return sortOrder.value === 'desc' ? bValue - aValue : aValue - bValue;
+    });
+})
+
+// Computed para datos de gráfica (ahora los datos ya vienen filtrados del backend)
+const filteredChartData = computed(() => {
+    return chartData.value;
 })
 
 // Chart options
 const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+        intersect: false,
+        mode: 'index'
+    },
     scales: {
         x: {
             grid: {
@@ -334,7 +518,7 @@ const chartOptions = {
                 maxRotation: 45,
                 minRotation: 45,
                 autoSkip: true,
-                maxTicksLimit: selectedInterval.value === '1m' ? 30 : 20 // Más puntos para intervalo de 1 minuto
+                maxTicksLimit: selectedInterval.value === '1m' ? 30 : 20
             }
         },
         y: {
@@ -352,7 +536,14 @@ const chartOptions = {
     },
     plugins: {
         legend: {
-            display: false
+            display: true,
+            position: 'top',
+            labels: {
+                color: 'rgba(255, 255, 255, 0.7)',
+                padding: 20,
+                usePointStyle: true,
+                pointStyle: 'circle'
+            }
         },
         tooltip: {
             backgroundColor: 'rgba(17, 24, 39, 0.9)',
@@ -361,7 +552,7 @@ const chartOptions = {
             borderColor: 'rgba(139, 92, 246, 0.2)',
             borderWidth: 1,
             padding: 12,
-            displayColors: false,
+            displayColors: true,
             callbacks: {
                 title: function(context) {
                     const date = new Date(groupDataByInterval(dailyStats.value)[context[0].dataIndex].datetime);
@@ -383,9 +574,23 @@ const chartOptions = {
                     }
                 },
                 label: function(context) {
-                    const exactViews = context.raw.toLocaleString('es-ES');
-                    const formattedViews = formatNumber(context.raw);
-                    return `${exactViews} visualizaciones (${formattedViews})`;
+                    const value = context.raw;
+                    const exactViews = value.toLocaleString('es-ES');
+                    const formattedViews = formatNumber(value);
+
+                    // Calcular el porcentaje de diferencia si hay comparación
+                    if (comparisonMode.value !== 'none' && context.datasetIndex === 0 && context.dataset.data.length > 1) {
+                        const currentValue = value;
+                        const comparisonValue = context.chart.data.datasets[1].data[context.dataIndex];
+                        if (comparisonValue) {
+                            const difference = currentValue - comparisonValue;
+                            const percentChange = ((difference / comparisonValue) * 100).toFixed(1);
+                            const sign = difference >= 0 ? '+' : '';
+                            return `${context.dataset.label}: ${exactViews} (${formattedViews}) ${sign}${percentChange}%`;
+                        }
+                    }
+                    
+                    return `${context.dataset.label}: ${exactViews} (${formattedViews})`;
                 }
             }
         }
@@ -401,7 +606,7 @@ const dailyDifferenceChartData = computed(() => {
         return {
             labels: [],
             datasets: [{
-                label: 'Incremento de Visualizaciones por Día',
+                label: 'Incremento de Visualizaciones',
                 data: [],
                 backgroundColor: 'rgba(139, 92, 246, 0.5)',
                 borderColor: 'rgba(139, 92, 246, 1)',
@@ -412,60 +617,44 @@ const dailyDifferenceChartData = computed(() => {
         }
     }
 
-    // Agrupar datos por día (usando solo la fecha, sin la hora)
-    const dailyData = {};
-    
-    // Primero encontramos el último valor de cada día
-    dailyStats.value.forEach(stat => {
-        const date = new Date(stat.datetime).toISOString().split('T')[0];
-        
-        if (!dailyData[date] || new Date(stat.datetime) > new Date(dailyData[date].datetime)) {
-            dailyData[date] = {
-                views: stat.total_views,
-                datetime: stat.datetime
-            };
-        }
-    });
-
-    console.log('Datos agrupados por día:', dailyData);
-
-    // Convertir a arrays ordenados por fecha
-    const sortedDates = Object.keys(dailyData).sort();
-    console.log('Fechas ordenadas:', sortedDates);
+    // Usar la función de agrupación específica para diferencias
+    const groupedData = groupDifferenceDataByInterval(dailyStats.value);
+    console.log('Datos agrupados:', groupedData);
 
     const labels = [];
     const viewsDifference = [];
 
-    // Calcular diferencias diarias
-    for (let i = 1; i < sortedDates.length; i++) {
-        const currentViews = dailyData[sortedDates[i]].views;
-        const previousViews = dailyData[sortedDates[i - 1]].views;
+    // Calcular diferencias entre intervalos
+    for (let i = 1; i < groupedData.length; i++) {
+        const currentViews = groupedData[i].total_views;
+        const previousViews = groupedData[i - 1].total_views;
         const difference = currentViews - previousViews;
         
-        console.log(`Calculando diferencia para ${sortedDates[i]}:`, {
-            currentViews,
-            previousViews,
-            difference
-        });
-
-        // Formatear la fecha para la etiqueta
-        const formattedDate = new Date(sortedDates[i]).toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
+        const date = new Date(groupedData[i].datetime);
+        let formattedDate;
+        
+        if (selectedDifferenceInterval.value === '1d' || selectedDifferenceInterval.value === '6h') {
+            formattedDate = date.toLocaleString('es-ES', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else {
+            formattedDate = date.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
         
         labels.push(formattedDate);
         viewsDifference.push(difference);
     }
 
-    console.log('Labels finales:', labels);
-    console.log('Diferencias finales:', viewsDifference);
-
     return {
         labels,
         datasets: [{
-            label: 'Incremento de Visualizaciones por Día',
+            label: 'Incremento de Visualizaciones',
             data: viewsDifference,
             backgroundColor: 'rgba(139, 92, 246, 0.5)',
             borderColor: 'rgba(139, 92, 246, 1)',
@@ -533,6 +722,11 @@ const dailyDifferenceChartOptions = {
         }
     }
 }
+
+// Watch for changes in selected channels
+watch(selectedChannels, () => {
+    fetchDailyStats();
+});
 
 onMounted(() => {
     fetchGlobalAnalytics()
@@ -604,15 +798,135 @@ onUnmounted(() => {
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                     <!-- Total Views Chart -->
                     <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
+                        <div class="flex flex-col space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-white">Visualizaciones Totales</h3>
+                                    <p class="text-sm text-gray-400">
+                                        {{ selectedInterval === '1m' 
+                                            ? 'Últimos 60 minutos'
+                                            : selectedInterval === '5m'
+                                                ? 'Últimas 24 horas'
+                                                : selectedInterval === '1h' || selectedInterval === '6h'
+                                                    ? 'Últimas 48 horas'
+                                                    : 'Últimos 28 días' }}
+                                    </p>
+                                </div>
+                                
+                                <div class="flex items-center gap-3">
+                                    <!-- Channel Filter -->
+                                    <div class="relative">
+                                        <button
+                                            @click="$refs.channelDropdown.classList.toggle('hidden')"
+                                            class="px-3 py-1.5 text-xs font-medium bg-gray-700/50 text-gray-300 hover:bg-gray-700/70 rounded-lg transition-all duration-200 flex items-center gap-2"
+                                        >
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                            </svg>
+                                            Filtrar Canales
+                                            <span v-if="selectedChannels.length > 0" class="bg-purple-600 text-white px-1.5 rounded-full text-xs">
+                                                {{ selectedChannels.length }}
+                                            </span>
+                                        </button>
+                                        <div
+                                            ref="channelDropdown"
+                                            class="hidden absolute right-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-xl shadow-lg z-50"
+                                        >
+                                            <div class="p-2">
+                                                <div class="space-y-1">
+                                                    <label
+                                                        v-for="channel in channels"
+                                                        :key="channel.id"
+                                                        class="flex items-center p-2 rounded hover:bg-gray-700/50 cursor-pointer"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            :value="channel.id"
+                                                            v-model="selectedChannels"
+                                                            class="rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-700"
+                                                        >
+                                                        <span class="ml-2 text-sm text-gray-300">{{ channel.name }}</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Comparison Controls -->
+                                    <div class="flex">
+                                        <button
+                                            v-for="(label, mode) in {
+                                                'none': 'Sin Comparar',
+                                                'previous_period': 'vs Anterior'
+                                            }"
+                                            :key="mode"
+                                            @click="comparisonMode = mode"
+                                            :class="[
+                                                'px-2 py-1 text-xs font-medium transition-all duration-200',
+                                                mode === 'none' ? 'rounded-l-lg' : 'rounded-r-lg border-l border-gray-600',
+                                                comparisonMode === mode
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
+                                            ]"
+                                        >
+                                            {{ label }}
+                                        </button>
+                                    </div>
+
+                                    <div class="h-4 w-px bg-gray-700"></div>
+
+                                    <!-- Interval Buttons -->
+                                    <div class="flex">
+                                        <button
+                                            v-for="(label, interval) in {
+                                                '1m': '1m',
+                                                '5m': '5m',
+                                                '1h': '1h',
+                                                '6h': '6h',
+                                                '1d': '1d'
+                                            }"
+                                            :key="interval"
+                                            @click="selectedInterval = interval"
+                                            :class="[
+                                                'px-2 py-1 text-xs font-medium transition-all duration-200',
+                                                interval === '1m' ? 'rounded-l-lg' : interval === '1d' ? 'rounded-r-lg' : '',
+                                                interval !== '1m' ? 'border-l border-gray-600' : '',
+                                                selectedInterval === interval
+                                                    ? 'bg-purple-600 text-white'
+                                                    : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
+                                            ]"
+                                        >
+                                            {{ label }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Content -->
+                        <div v-if="dailyStatsLoading" class="flex justify-center items-center h-[400px]">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                        </div>
+                        <div v-else-if="dailyStats.length === 0" class="flex flex-col justify-center items-center h-[400px] text-gray-400">
+                            <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6-4l2 2 4-4" />
+                            </svg>
+                            <p class="text-lg">No hay datos disponibles</p>
+                        </div>
+                        <div v-else class="h-[400px]">
+                            <Line :data="filteredChartData" :options="chartOptions" />
+                        </div>
+                    </div>
+
+                    <!-- Daily Difference Chart -->
+                    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
                         <div class="flex items-center justify-between mb-4">
                             <div>
-                                <h3 class="text-lg font-semibold text-white">Visualizaciones Totales</h3>
+                                <h3 class="text-lg font-semibold text-white">Incremento de Visualizaciones</h3>
                                 <p class="text-sm text-gray-400">
-                                    {{ selectedInterval === '1m' || selectedInterval === '5m' 
-                                        ? 'Últimos 60 minutos' 
-                                        : selectedInterval === '1h' 
-                                            ? 'Últimas 24 horas'
-                                            : 'Últimos 28 días' }}
+                                    {{ selectedDifferenceInterval === '1h' || selectedDifferenceInterval === '6h'
+                                        ? 'Últimas 48 horas'
+                                        : 'Últimos 28 días' }}
                                 </p>
                             </div>
                             
@@ -620,17 +934,15 @@ onUnmounted(() => {
                             <div class="flex space-x-2">
                                 <button
                                     v-for="(label, interval) in {
-                                        '1m': 'Cada 1m',
-                                        '5m': 'Cada 5m',
                                         '1h': 'Cada 1h',
                                         '6h': 'Cada 6h',
                                         '1d': 'Cada 1d'
                                     }"
                                     :key="interval"
-                                    @click="selectedInterval = interval"
+                                    @click="selectedDifferenceInterval = interval"
                                     :class="[
                                         'px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200',
-                                        selectedInterval === interval
+                                        selectedDifferenceInterval === interval
                                             ? 'bg-purple-600 text-white'
                                             : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
                                     ]"
@@ -646,34 +958,11 @@ onUnmounted(() => {
                         </div>
 
                         <!-- No Data State -->
-                        <div v-else-if="dailyStats.length === 0" class="flex flex-col justify-center items-center h-[400px] text-gray-400">
-                            <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6-4l2 2 4-4" />
-                            </svg>
-                            <p class="text-lg">No hay datos disponibles</p>
-                        </div>
-
-                        <!-- Chart -->
-                        <div v-else class="h-[400px]">
-                            <Line :data="chartData" :options="chartOptions" />
-                        </div>
-                    </div>
-
-                    <!-- Daily Difference Chart -->
-                    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
-                        <h3 class="text-lg font-semibold text-white mb-4">Incremento Diario de Visualizaciones</h3>
-                        
-                        <!-- Loading State -->
-                        <div v-if="dailyStatsLoading" class="flex justify-center items-center h-[400px]">
-                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-                        </div>
-
-                        <!-- No Data State -->
                         <div v-else-if="dailyStats.length <= 1" class="flex flex-col justify-center items-center h-[400px] text-gray-400">
                             <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6-4l2 2 4-4" />
                             </svg>
-                            <p class="text-lg">Se necesitan al menos 2 días de datos</p>
+                            <p class="text-lg">Se necesitan al menos dos puntos de datos para el intervalo seleccionado</p>
                         </div>
 
                         <!-- Chart -->
@@ -758,91 +1047,211 @@ onUnmounted(() => {
             <div>
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-2xl font-bold text-white">Todos los Videos (Ordenados por Visualizaciones)</h2>
-                    <div class="text-sm text-gray-400">{{ allVideos.length }} videos en total</div>
-                </div>
-
-                <!-- Videos Grid -->
-                <div v-if="!videosLoading && allVideos.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <div v-for="(video, index) in allVideos" :key="video.id"
-                         @click="openVideoAnalytics(video)"
-                         class="group bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 hover:border-gray-600/50 rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-gray-900/20">
-
-                        <!-- Thumbnail -->
-                        <div class="relative">
-                            <img v-if="video.thumbnail"
-                                 :src="video.thumbnail"
-                                 :alt="video.title"
-                                 class="w-full h-48 object-cover">
-                            <div class="absolute inset-0 bg-gradient-to-t from-gray-900/60 to-transparent"></div>
-
-                            <!-- Ranking Badge -->
-                            <div class="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded">
-                                #{{ index + 1 }}
-                            </div>
-
-                            <!-- Duration -->
-                            <div class="absolute bottom-2 right-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
-                                {{ video.duration }}
-                            </div>
-
-                            <!-- Performance Score -->
-                            <div class="absolute top-2 right-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
-                                <span :class="getPerformanceColor(video.metrics?.performance_score || 0)">
-                                    {{ video.metrics?.performance_score || 0 }}/100
-                                </span>
-                            </div>
+                    <div class="flex items-center gap-4">
+                        <!-- View Mode Toggle -->
+                        <div class="flex rounded-lg overflow-hidden">
+                            <button
+                                @click="viewMode = 'grid'"
+                                :class="[
+                                    'p-2 transition-all duration-200',
+                                    viewMode === 'grid'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
+                                ]"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                </svg>
+                            </button>
+                            <button
+                                @click="viewMode = 'compact'"
+                                :class="[
+                                    'p-2 transition-all duration-200',
+                                    viewMode === 'compact'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700/70'
+                                ]"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                </svg>
+                            </button>
                         </div>
 
-                        <!-- Content -->
-                        <div class="p-4">
-                            <!-- Channel Badge - Más prominente -->
-                            <div class="mb-3">
-                                <button
-                                    @click.stop="openChannelAnalytics(video.channel_id)"
-                                    class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 text-sm rounded-lg transition-all duration-200 group/channel"
+                        <!-- Sort Controls -->
+                        <div class="flex items-center gap-2">
+                            <select
+                                v-model="sortBy"
+                                class="bg-gray-700/50 border-gray-600 text-gray-300 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 p-2.5"
+                            >
+                                <option value="views">Visualizaciones</option>
+                                <option value="likes">Likes</option>
+                                <option value="comments">Comentarios</option>
+                                <option value="date">Fecha</option>
+                                <option value="performance">Rendimiento</option>
+                            </select>
+                            <button
+                                @click="sortOrder = sortOrder === 'desc' ? 'asc' : 'desc'"
+                                class="p-2.5 bg-gray-700/50 text-gray-300 rounded-lg hover:bg-gray-700/70 transition-all duration-200"
+                            >
+                                <svg
+                                    class="w-5 h-5 transition-transform duration-200"
+                                    :class="{ 'transform rotate-180': sortOrder === 'asc' }"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
                                 >
-                                    <svg class="w-4 h-4 mr-2 group-hover/channel:scale-110 transition-transform duration-200" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                                    </svg>
-                                    <span class="font-medium">{{ getChannelName(video.channel_id) }}</span>
-                                    <svg class="w-3 h-3 ml-1 opacity-0 group-hover/channel:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                                </svg>
+                            </button>
+                        </div>
 
-                            <h3 class="text-white font-semibold text-sm line-clamp-2 mb-3 group-hover:text-blue-300 transition-colors duration-300">
-                                {{ video.title }}
-                            </h3>
+                        <div class="text-sm text-gray-400">{{ sortedVideos.length }} videos en total</div>
+                    </div>
+                </div>
 
-                            <div class="space-y-2 text-xs text-gray-400">
-                                <div class="flex items-center justify-between">
-                                    <span>{{ formatDate(video.published_at) }}</span>
+                <!-- Videos Grid/List -->
+                <div v-if="!videosLoading && sortedVideos.length > 0" :class="[
+                    viewMode === 'grid'
+                        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                        : 'space-y-4'
+                ]">
+                    <template v-for="(video, index) in sortedVideos" :key="video.id">
+                        <!-- Grid View -->
+                        <div
+                            v-if="viewMode === 'grid'"
+                            @click="openVideoAnalytics(video)"
+                            class="group bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 hover:border-gray-600/50 rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-gray-900/20"
+                        >
+                            <!-- Thumbnail -->
+                            <div class="relative">
+                                <img v-if="video.thumbnail"
+                                     :src="video.thumbnail"
+                                     :alt="video.title"
+                                     class="w-full h-48 object-cover">
+                                <div class="absolute inset-0 bg-gradient-to-t from-gray-900/60 to-transparent"></div>
+
+                                <!-- Ranking Badge -->
+                                <div class="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded">
+                                    #{{ index + 1 }}
+                                </div>
+
+                                <!-- Duration -->
+                                <div class="absolute bottom-2 right-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
+                                    {{ video.duration }}
+                                </div>
+
+                                <!-- Performance Score -->
+                                <div class="absolute top-2 right-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
                                     <span :class="getPerformanceColor(video.metrics?.performance_score || 0)">
-                                        {{ getPerformanceLevel(video.metrics?.performance_score || 0) }}
+                                        {{ video.metrics?.performance_score || 0 }}/100
                                     </span>
                                 </div>
+                            </div>
 
-                                <div class="flex items-center justify-between">
-                                    <span class="font-semibold text-green-400">{{ formatNumber(video.statistics?.view_count || 0) }} vistas</span>
-                                    <span>{{ formatNumber(video.statistics?.like_count || 0) }} likes</span>
+                            <!-- Content -->
+                            <div class="p-4">
+                                <!-- Channel Badge - Más prominente -->
+                                <div class="mb-3">
+                                    <button
+                                        @click.stop="openChannelAnalytics(video.channel_id)"
+                                        class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 hover:text-red-300 text-sm rounded-lg transition-all duration-200 group/channel"
+                                    >
+                                        <svg class="w-4 h-4 mr-2 group-hover/channel:scale-110 transition-transform duration-200" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                        </svg>
+                                        <span class="font-medium">{{ getChannelName(video.channel_id) }}</span>
+                                        <svg class="w-3 h-3 ml-1 opacity-0 group-hover/channel:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
                                 </div>
 
-                                <div class="flex items-center justify-between">
-                                    <span>{{ formatNumber(video.statistics?.comment_count || 0) }} comentarios</span>
-                                    <span>{{ (Number(video.metrics?.engagement_rate) || 0).toFixed(2) }}% engagement</span>
-                                </div>
+                                <h3 class="text-white font-semibold text-sm line-clamp-2 mb-3 group-hover:text-blue-300 transition-colors duration-300">
+                                    {{ video.title }}
+                                </h3>
 
-                                <!-- Información adicional del canal -->
-                                <div class="pt-1 border-t border-gray-700/50">
+                                <div class="space-y-2 text-xs text-gray-400">
                                     <div class="flex items-center justify-between">
-                                        <span class="text-red-400 font-medium">Canal: {{ getChannelName(video.channel_id) }}</span>
-                                        <span class="text-yellow-400">#{{ index + 1 }} más visto</span>
+                                        <span>{{ formatDate(video.published_at) }}</span>
+                                        <span :class="getPerformanceColor(video.metrics?.performance_score || 0)">
+                                            {{ getPerformanceLevel(video.metrics?.performance_score || 0) }}
+                                        </span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-semibold text-green-400">{{ formatNumber(video.statistics?.view_count || 0) }} vistas</span>
+                                        <span>{{ formatNumber(video.statistics?.like_count || 0) }} likes</span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between">
+                                        <span>{{ formatNumber(video.statistics?.comment_count || 0) }} comentarios</span>
+                                        <span>{{ (Number(video.metrics?.engagement_rate) || 0).toFixed(2) }}% engagement</span>
+                                    </div>
+
+                                    <!-- Información adicional del canal -->
+                                    <div class="pt-1 border-t border-gray-700/50">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-red-400 font-medium">Canal: {{ getChannelName(video.channel_id) }}</span>
+                                            <span class="text-yellow-400">#{{ index + 1 }} más visto</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+
+                        <!-- Compact View -->
+                        <div
+                            v-else
+                            @click="openVideoAnalytics(video)"
+                            class="group bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 hover:border-gray-600/50 rounded-xl p-4 transition-all duration-300 cursor-pointer hover:shadow-lg"
+                        >
+                            <div class="flex items-center gap-4">
+                                <!-- Thumbnail -->
+                                <div class="relative w-40 h-24 flex-shrink-0">
+                                    <img
+                                        v-if="video.thumbnail"
+                                        :src="video.thumbnail"
+                                        :alt="video.title"
+                                        class="w-full h-full object-cover rounded-lg"
+                                    >
+                                    <div class="absolute bottom-1 right-1 bg-gray-900/80 text-white text-xs px-1.5 py-0.5 rounded">
+                                        {{ video.duration }}
+                                    </div>
+                                </div>
+
+                                <!-- Content -->
+                                <div class="flex-grow min-w-0">
+                                    <div class="flex items-start justify-between gap-4">
+                                        <h3 class="text-white font-semibold text-sm line-clamp-2 group-hover:text-blue-300 transition-colors duration-300">
+                                            {{ video.title }}
+                                        </h3>
+                                        <div :class="['text-sm font-medium', getPerformanceColor(video.metrics?.performance_score || 0)]">
+                                            {{ video.metrics?.performance_score || 0 }}/100
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-2 flex items-center gap-4 text-sm text-gray-400">
+                                        <span class="font-semibold text-green-400">{{ formatNumber(video.statistics?.view_count || 0) }} vistas</span>
+                                        <span>{{ formatNumber(video.statistics?.like_count || 0) }} likes</span>
+                                        <span>{{ formatNumber(video.statistics?.comment_count || 0) }} comentarios</span>
+                                        <span>{{ (Number(video.metrics?.engagement_rate) || 0).toFixed(2) }}% engagement</span>
+                                    </div>
+
+                                    <div class="mt-2 flex items-center gap-2 text-sm">
+                                        <button
+                                            @click.stop="openChannelAnalytics(video.channel_id)"
+                                            class="text-red-400 hover:text-red-300 font-medium transition-colors duration-200"
+                                        >
+                                            {{ getChannelName(video.channel_id) }}
+                                        </button>
+                                        <span class="text-gray-600">•</span>
+                                        <span class="text-gray-400">{{ formatDate(video.published_at) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Loading -->
