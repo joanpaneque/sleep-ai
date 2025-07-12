@@ -10,13 +10,14 @@ use App\Models\YoutubeVideoAnalytics;
 use App\Services\YoutubeService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class SyncAllYoutubeData extends Command
 {
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'youtube:sync-all {--force : Force sync even if recently synced} {--channel= : Sync specific channel ID only}';
+    protected $signature = 'youtube:sync-all {--force : Force sync even if recently synced} {--channel= : Sync specific channel ID only} {--full-history : Sync full history instead of last 30 days} {--days= : Number of days to sync (default: 30)}';
 
     /**
      * The console command description.
@@ -131,6 +132,9 @@ class SyncAllYoutubeData extends Command
                 ['Duración', "{$duration} segundos"]
             ]
         );
+
+        // Show global revenue summary
+        $this->showGlobalRevenueSummary();
 
         Log::info('YouTube sync completed', $stats + ['duration_seconds' => $duration]);
 
@@ -470,11 +474,60 @@ class SyncAllYoutubeData extends Command
     private function syncYoutubeAnalytics(Channel $channel): void
     {
         try {
-            // Define date range (last 30 days)
-            $endDate = now()->format('Y-m-d');
-            $startDate = now()->subDays(30)->format('Y-m-d');
+            // Get the latest date we have data for this channel
+            $latestDate = YoutubeAnalyticsReport::where('channel_id', $channel->id)
+                ->where('report_type', 'daily')
+                ->max('report_date');
 
-            $this->info("  📈 Sincronizando analytics del {$startDate} al {$endDate}");
+            $endDate = now()->format('Y-m-d');
+            
+            if ($this->option('full-history')) {
+                // For full history, start from beginning or latest date + 1
+                if ($latestDate) {
+                    $startDate = Carbon::parse($latestDate)->addDay()->format('Y-m-d');
+                    if ($startDate > $endDate) {
+                        $this->info("  ✅ Datos ya actualizados hasta {$latestDate}");
+                        $this->showChannelRevenueSummary($channel);
+                        return;
+                    }
+                    $this->info("  📈 Sincronizando datos nuevos desde {$startDate} hasta {$endDate}");
+                } else {
+                    $startDate = '2012-05-01';
+                    $this->info("  📈 Sincronizando TODO el historial desde {$startDate} hasta {$endDate}");
+                }
+            } elseif ($this->option('days')) {
+                $days = (int) $this->option('days');
+                $requestedStartDate = now()->subDays($days)->format('Y-m-d');
+                
+                if ($latestDate && $latestDate >= $requestedStartDate) {
+                    $startDate = Carbon::parse($latestDate)->addDay()->format('Y-m-d');
+                    if ($startDate > $endDate) {
+                        $this->info("  ✅ Datos ya actualizados para los últimos {$days} días");
+                        $this->showChannelRevenueSummary($channel);
+                        return;
+                    }
+                    $this->info("  📈 Completando datos desde {$startDate} hasta {$endDate}");
+                } else {
+                    $startDate = $requestedStartDate;
+                    $this->info("  📈 Sincronizando últimos {$days} días ({$startDate} al {$endDate})");
+                }
+            } else {
+                // Default: only sync missing days from last 30 days
+                $requestedStartDate = now()->subDays(30)->format('Y-m-d');
+                
+                if ($latestDate && $latestDate >= $requestedStartDate) {
+                    $startDate = Carbon::parse($latestDate)->addDay()->format('Y-m-d');
+                    if ($startDate > $endDate) {
+                        $this->info("  ✅ Datos ya actualizados para los últimos 30 días");
+                        $this->showChannelRevenueSummary($channel);
+                        return;
+                    }
+                    $this->info("  📈 Completando datos desde {$startDate} hasta {$endDate}");
+                } else {
+                    $startDate = $requestedStartDate;
+                    $this->info("  📈 Sincronizando últimos 30 días ({$startDate} al {$endDate})");
+                }
+            }
 
             // 1. Sync daily channel analytics
             $this->syncDailyChannelAnalytics($channel, $startDate, $endDate);
@@ -494,10 +547,13 @@ class SyncAllYoutubeData extends Command
             // 6. Sync video-specific analytics for top videos
             $this->syncTopVideosAnalytics($channel, $startDate, $endDate);
 
-            // 7. Sync revenue analytics (if monetized)
-            $this->syncRevenueAnalytics($channel, $startDate, $endDate);
+            // 7. Revenue analytics are already included in daily analytics to avoid duplicates
+            // $this->syncRevenueAnalytics($channel, $startDate, $endDate);
 
             $this->info("  ✅ Analytics sincronizados correctamente");
+            
+            // Show revenue summary for this channel
+            $this->showChannelRevenueSummary($channel);
 
         } catch (\Exception $e) {
             $this->error("  ❌ Error sincronizando analytics: {$e->getMessage()}");
@@ -833,5 +889,100 @@ class SyncAllYoutubeData extends Command
                 }
             }
         }
+    }
+
+    /**
+     * Show a summary of revenue data for a channel
+     */
+    private function showChannelRevenueSummary(Channel $channel): void
+    {
+        $revenueReports = YoutubeAnalyticsReport::where('channel_id', $channel->id)
+            ->where('report_type', 'daily')
+            ->whereNotNull('estimated_revenue')
+            ->get();
+
+        if ($revenueReports->isEmpty()) {
+            $this->info("    ℹ️  Sin datos de ingresos para {$channel->name}");
+            return;
+        }
+
+        $firstRevenueDate = $revenueReports->min('report_date');
+        $lastRevenueDate = $revenueReports->max('report_date');
+        $totalDays = $revenueReports->count();
+        
+        $totalEstimatedRevenue = $revenueReports->sum('estimated_revenue');
+        $avgDailyRevenue = $totalDays > 0 ? $totalEstimatedRevenue / $totalDays : 0;
+
+        $this->info("    💰 RESUMEN DE INGRESOS - {$channel->name}");
+        $this->table(
+            ['Métrica', 'Valor'],
+            [
+                ['Período de monetización', Carbon::parse($firstRevenueDate)->format('Y-m-d') . ' → ' . Carbon::parse($lastRevenueDate)->format('Y-m-d')],
+                ['Días con ingresos', $totalDays],
+                ['INGRESOS ESTIMADOS TOTALES', '$' . number_format($totalEstimatedRevenue, 2)],
+                ['Promedio diario', '$' . number_format($avgDailyRevenue, 2)],
+                ['Proyección mensual', '$' . number_format($avgDailyRevenue * 30, 2)]
+            ]
+        );
+    }
+
+    /**
+     * Show global revenue summary for all channels
+     */
+    private function showGlobalRevenueSummary(): void
+    {
+        $this->info('');
+        $this->info('💰💰💰 RESUMEN GLOBAL DE INGRESOS - TODOS LOS CANALES 💰💰💰');
+        
+        $channelsWithRevenue = Channel::whereHas('youtubeAnalyticsReports', function($query) {
+            $query->where('report_type', 'daily')->whereNotNull('estimated_revenue');
+        })->with(['youtubeAnalyticsReports' => function($query) {
+            $query->where('report_type', 'daily')->whereNotNull('estimated_revenue');
+        }])->get();
+
+        if ($channelsWithRevenue->isEmpty()) {
+            $this->warn('No hay canales con datos de ingresos disponibles.');
+            return;
+        }
+
+        $globalTotal = 0;
+        $globalDays = 0;
+        $channelSummaries = [];
+
+        foreach ($channelsWithRevenue as $channel) {
+            $reports = $channel->youtubeAnalyticsReports;
+            $channelTotal = $reports->sum('estimated_revenue');
+            $channelDays = $reports->count();
+            $firstDate = $reports->min('report_date');
+            $lastDate = $reports->max('report_date');
+            
+            $globalTotal += $channelTotal;
+            $globalDays += $channelDays;
+            
+            $channelSummaries[] = [
+                $channel->name,
+                Carbon::parse($firstDate)->format('Y-m-d') . ' → ' . Carbon::parse($lastDate)->format('Y-m-d'),
+                $channelDays,
+                '$' . number_format($channelTotal, 2),
+                '$' . number_format($channelDays > 0 ? $channelTotal / $channelDays : 0, 2)
+            ];
+        }
+
+        $this->table(
+            ['Canal', 'Período', 'Días', 'Total Histórico', 'Promedio/Día'],
+            $channelSummaries
+        );
+
+        $this->info('');
+        $this->info('🎯 TOTALES GLOBALES:');
+        $this->table(
+            ['Métrica', 'Valor'],
+            [
+                ['Canales monetizados', count($channelsWithRevenue)],
+                ['INGRESOS ESTIMADOS TOTALES', '$' . number_format($globalTotal, 2)],
+                ['Promedio global diario', '$' . number_format($globalDays > 0 ? $globalTotal / $globalDays : 0, 2)],
+                ['Proyección mensual global', '$' . number_format(($globalDays > 0 ? $globalTotal / $globalDays : 0) * 30, 2)]
+            ]
+        );
     }
 }

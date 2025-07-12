@@ -28,8 +28,17 @@ const statsLoading = ref(false)
 const videosLoading = ref(false)
 const analyticsLoading = ref(false)
 
-const selectedDateRange = ref('30') // 7, 30, 90 days
 const activeTab = ref('overview') // overview, geographic, devices, traffic, demographics, videos
+const startDate = ref('')
+const endDate = ref('')
+
+// Available data range (will be populated from API)
+const availableDataRange = ref({
+    start: null,
+    end: null,
+    totalRevenue: 0,
+    totalDays: 0
+})
 
 // Fetch channel analytics from database
 const fetchChannelAnalytics = async () => {
@@ -50,24 +59,53 @@ const fetchChannelAnalytics = async () => {
     }
 }
 
+// Fetch available data range
+const fetchDataRange = async () => {
+    try {
+        const response = await fetch(`/api/channels/${props.channel.id}/analytics/data-range`)
+        const data = await response.json()
+        
+        if (data.success) {
+            availableDataRange.value = data.data
+            console.log('Available data range:', data.data)
+        }
+    } catch (error) {
+        console.error('Error fetching data range:', error)
+    }
+}
+
 // Fetch YouTube Analytics data
 const fetchYouTubeAnalytics = async () => {
     analyticsLoading.value = true
     try {
-        // Use fixed date range that matches available data
-        const endDate = '2025-07-11'
-        const startDate = '2025-06-11'
+        let finalStartDate, finalEndDate
         
-        console.log('Fetching analytics for date range:', startDate, 'to', endDate)
+        if (startDate.value && endDate.value) {
+            // Use custom date range
+            finalStartDate = startDate.value
+            finalEndDate = endDate.value
+        } else {
+            // Use entire available range or fallback
+            if (availableDataRange.value.start && availableDataRange.value.end) {
+                finalStartDate = availableDataRange.value.start.split('T')[0]
+                finalEndDate = availableDataRange.value.end.split('T')[0]
+            } else {
+                // Fallback to fixed dates
+                finalEndDate = '2025-07-11'
+                finalStartDate = '2025-06-11'
+            }
+        }
+        
+        console.log('Fetching analytics for date range:', finalStartDate, 'to', finalEndDate)
         
         // Fetch all analytics data
         const [dailyResponse, geoResponse, deviceResponse, trafficResponse, demoResponse, videoResponse] = await Promise.all([
-            fetch(`/api/channels/${props.channel.id}/analytics/daily?start_date=${startDate}&end_date=${endDate}`),
-            fetch(`/api/channels/${props.channel.id}/analytics/geographic?start_date=${startDate}&end_date=${endDate}`),
-            fetch(`/api/channels/${props.channel.id}/analytics/devices?start_date=${startDate}&end_date=${endDate}`),
-            fetch(`/api/channels/${props.channel.id}/analytics/traffic-sources?start_date=${startDate}&end_date=${endDate}`),
-            fetch(`/api/channels/${props.channel.id}/analytics/demographics?start_date=${startDate}&end_date=${endDate}`),
-            fetch(`/api/channels/${props.channel.id}/analytics/top-videos?start_date=${startDate}&end_date=${endDate}`)
+            fetch(`/api/channels/${props.channel.id}/analytics/daily?start_date=${finalStartDate}&end_date=${finalEndDate}`),
+            fetch(`/api/channels/${props.channel.id}/analytics/geographic?start_date=${finalStartDate}&end_date=${finalEndDate}`),
+            fetch(`/api/channels/${props.channel.id}/analytics/devices?start_date=${finalStartDate}&end_date=${finalEndDate}`),
+            fetch(`/api/channels/${props.channel.id}/analytics/traffic-sources?start_date=${finalStartDate}&end_date=${finalEndDate}`),
+            fetch(`/api/channels/${props.channel.id}/analytics/demographics?start_date=${finalStartDate}&end_date=${finalEndDate}`),
+            fetch(`/api/channels/${props.channel.id}/analytics/top-videos?start_date=${finalStartDate}&end_date=${finalEndDate}`)
         ])
 
         const [daily, geo, device, traffic, demo, videoData] = await Promise.all([
@@ -129,11 +167,6 @@ const analyticsSummary = computed(() => {
         avgViewDuration: analyticsReports.value.reduce((sum, report) => sum + (report.average_view_duration || 0), 0) / analyticsReports.value.length,
         avgViewPercentage: analyticsReports.value.reduce((sum, report) => sum + (report.average_view_percentage || 0), 0) / analyticsReports.value.length,
         totalRevenue: revenueSummary.value?.total_revenue || 0,
-        totalAdRevenue: revenueSummary.value?.total_ad_revenue || 0,
-        totalGrossRevenue: revenueSummary.value?.total_gross_revenue || 0,
-        avgCpm: revenueSummary.value?.avg_cpm || 0,
-        totalMonetizedPlaybacks: revenueSummary.value?.total_monetized_playbacks || 0,
-        totalAdImpressions: revenueSummary.value?.total_ad_impressions || 0,
         engagementRate: 0
     }
 })
@@ -143,6 +176,24 @@ const engagementRate = computed(() => {
     if (!analyticsSummary.value) return 0
     const { totalViews, totalLikes, totalComments } = analyticsSummary.value
     return totalViews > 0 ? ((totalLikes + totalComments) / totalViews * 100) : 0
+})
+
+// Computed property for date range text
+const dateRangeText = computed(() => {
+    if (startDate.value && endDate.value) {
+        const start = new Date(startDate.value).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        })
+        const end = new Date(endDate.value).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        })
+        return `${start} - ${end}`
+    }
+    return 'Todos los tiempos'
 })
 
 // Net subscribers
@@ -244,7 +295,8 @@ const onDateRangeChange = () => {
     fetchYouTubeAnalytics()
 }
 
-onMounted(() => {
+onMounted(async () => {
+    await fetchDataRange()
     fetchChannelAnalytics()
     fetchChannelVideos()
     fetchYouTubeAnalytics()
@@ -272,16 +324,37 @@ onMounted(() => {
                         </div>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <!-- Date Range Selector -->
-                        <select 
-                            v-model="selectedDateRange" 
-                            @change="onDateRangeChange"
-                            class="bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                            <option value="7">Últimos 7 días</option>
-                            <option value="30">Últimos 30 días</option>
-                            <option value="90">Últimos 90 días</option>
-                        </select>
+                        <!-- Historical Revenue Info -->
+                        <div v-if="availableDataRange.has_revenue_data" class="text-sm text-gray-300 bg-gray-800/50 rounded-xl px-4 py-2 border border-gray-700/50">
+                            <div class="font-medium text-green-400">Total Histórico: ${{ availableDataRange.total_historical_revenue }}</div>
+                            <div class="text-xs text-gray-400">{{ formatDate(availableDataRange.start_date) }} → {{ formatDate(availableDataRange.end_date) }}</div>
+                        </div>
+                        
+                        <!-- Custom Date Range -->
+                        <div class="flex items-center space-x-2">
+                            <input 
+                                v-model="startDate"
+                                type="date" 
+                                :min="availableDataRange.start_date ? availableDataRange.start_date.split('T')[0] : ''"
+                                :max="availableDataRange.end_date ? availableDataRange.end_date.split('T')[0] : ''"
+                                class="bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <span class="text-gray-400">→</span>
+                            <input 
+                                v-model="endDate"
+                                type="date" 
+                                :min="startDate || (availableDataRange.start_date ? availableDataRange.start_date.split('T')[0] : '')"
+                                :max="availableDataRange.end_date ? availableDataRange.end_date.split('T')[0] : ''"
+                                class="bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <button 
+                                @click="onDateRangeChange"
+                                :disabled="!startDate || !endDate"
+                                class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                            >
+                                Aplicar
+                            </button>
+                        </div>
                         
                         <button
                             @click="triggerSync"
@@ -364,10 +437,10 @@ onMounted(() => {
             <div v-if="activeTab === 'overview'" class="space-y-8">
                 <!-- Main Analytics Summary -->
                 <div v-if="analyticsSummary" class="mb-8">
-                    <h2 class="text-2xl font-bold text-white mb-6">Resumen de Analytics (Últimos {{ selectedDateRange }} días)</h2>
+                    <h2 class="text-2xl font-bold text-white mb-6">Resumen de Analytics ({{ dateRangeText }})</h2>
 
                     <!-- Primary Metrics -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                         <div class="bg-gradient-to-br from-blue-600/20 to-blue-700/10 border border-blue-500/30 rounded-2xl p-6">
                             <div class="flex items-center justify-between mb-4">
                                 <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
@@ -406,7 +479,7 @@ onMounted(() => {
                         </div>
 
                         <div class="bg-gradient-to-br from-orange-600/20 to-orange-700/10 border border-orange-500/30 rounded-2xl p-6">
-                            <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center justify-between mb-4">
                                 <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
                                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -451,36 +524,18 @@ onMounted(() => {
                     </div>
 
                     <!-- Revenue Section (if available) -->
-                    <div v-if="analyticsSummary.totalRevenue > 0 || analyticsSummary.totalAdRevenue > 0" class="bg-gradient-to-br from-yellow-600/20 to-yellow-700/10 border border-yellow-500/30 rounded-xl p-6 mb-8">
-                        <h3 class="text-xl font-semibold text-white mb-6 flex items-center">
-                            <svg class="w-6 h-6 text-yellow-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                            Ingresos y Monetización
-                        </h3>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div class="text-center">
-                                <p class="text-3xl font-bold text-yellow-400">${{ (analyticsSummary.totalRevenue || 0).toFixed(2) }}</p>
-                                <p class="text-yellow-300 text-sm">Ingresos Estimados</p>
+                    <div v-if="analyticsSummary.totalRevenue > 0" class="text-center mb-8">
+                        <div class="inline-block bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-8 revenue-shine relative overflow-hidden">
+                            <div class="flex items-center justify-center mb-4">
+                                <svg class="w-12 h-12 text-yellow-400 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                </svg>
+                                <h3 class="text-2xl font-semibold text-yellow-300 relative z-10">Ingresos Estimados</h3>
                             </div>
-                            <div class="text-center">
-                                <p class="text-3xl font-bold text-green-400">${{ (analyticsSummary.totalAdRevenue || 0).toFixed(2) }}</p>
-                                <p class="text-green-300 text-sm">Ingresos por Anuncios</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-3xl font-bold text-blue-400">${{ (analyticsSummary.avgCpm || 0).toFixed(2) }}</p>
-                                <p class="text-blue-300 text-sm">CPM Promedio</p>
-                            </div>
-                            <div class="text-center">
-                                <p class="text-3xl font-bold text-purple-400">{{ formatNumber(analyticsSummary.totalMonetizedPlaybacks || 0) }}</p>
-                                <p class="text-purple-300 text-sm">Reproducciones Monetizadas</p>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-4 text-center">
-                            <p class="text-yellow-300 text-sm">Datos de junio-julio 2025</p>
-                            <p class="text-gray-400 text-xs mt-1">{{ formatNumber(analyticsSummary.totalAdImpressions || 0) }} impresiones de anuncios</p>
+                            <p class="text-6xl font-bold text-yellow-400 mb-4 relative z-10">${{ (analyticsSummary.totalRevenue || 0).toFixed(2) }}</p>
+                            <p class="text-yellow-300 text-sm relative z-10">Datos de monetización históricos</p>
+                            <!-- Shine effect overlay -->
+                            <div class="absolute inset-0 -top-2 -bottom-2 bg-gradient-to-r from-transparent via-yellow-300/20 to-transparent shine-animation"></div>
                         </div>
                     </div>
 
@@ -519,15 +574,15 @@ onMounted(() => {
                         </div>
                     </div>
                 </div>
-            </div>
+                    </div>
 
             <!-- Geographic Tab -->
             <div v-if="activeTab === 'geographic'" class="space-y-8">
-                <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
+                    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
                     <h3 class="text-2xl font-semibold text-white mb-6 flex items-center">
                         <svg class="w-6 h-6 text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                                </svg>
                         Distribución Geográfica
                     </h3>
                     
@@ -550,7 +605,7 @@ onMounted(() => {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div v-else class="text-center py-8">
                         <p class="text-gray-400">No hay datos geográficos disponibles</p>
                     </div>
@@ -559,7 +614,7 @@ onMounted(() => {
 
             <!-- Devices Tab -->
             <div v-if="activeTab === 'devices'" class="space-y-8">
-                <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
+                    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
                     <h3 class="text-2xl font-semibold text-white mb-6 flex items-center">
                         <svg class="w-6 h-6 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -570,12 +625,12 @@ onMounted(() => {
                     <div v-if="deviceData.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div v-for="device in deviceData" :key="device.id" 
                              class="bg-gray-700/30 rounded-xl p-6 border border-gray-600/30">
-                            <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center justify-between mb-4">
                                 <h4 class="text-white font-semibold text-lg">{{ device.dimension_value }}</h4>
-                                <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
+                                </svg>
                                 </div>
                             </div>
                             
@@ -625,7 +680,7 @@ onMounted(() => {
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div class="text-center">
                                     <p class="text-2xl font-bold text-blue-300">{{ formatNumber(source.views) }}</p>
-                                    <p class="text-gray-400 text-sm">Visualizaciones</p>
+                        <p class="text-gray-400 text-sm">Visualizaciones</p>
                                 </div>
                                 <div class="text-center">
                                     <p class="text-2xl font-bold text-green-300">{{ formatHours(source.estimated_minutes_watched) }}</p>
@@ -638,7 +693,7 @@ onMounted(() => {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div v-else class="text-center py-8">
                         <p class="text-gray-400">No hay datos de fuentes de tráfico disponibles</p>
                     </div>
@@ -647,11 +702,11 @@ onMounted(() => {
 
             <!-- Demographics Tab -->
             <div v-if="activeTab === 'demographics'" class="space-y-8">
-                <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
+                    <div class="bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 rounded-2xl p-6">
                     <h3 class="text-2xl font-semibold text-white mb-6 flex items-center">
                         <svg class="w-6 h-6 text-orange-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
+                                </svg>
                         Demografía de la Audiencia
                     </h3>
                     
@@ -683,7 +738,7 @@ onMounted(() => {
                         <svg class="w-6 h-6 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        Videos Más Populares (Últimos {{ selectedDateRange }} días)
+                        Videos Más Populares ({{ dateRangeText }})
                     </h3>
                     
                     <div class="space-y-4">
@@ -723,82 +778,82 @@ onMounted(() => {
                                 <div class="text-center">
                                     <p class="text-2xl font-bold text-orange-300">{{ formatNumber(video.total_comments) }}</p>
                                     <p class="text-gray-400 text-sm">Comentarios</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                <!-- All Videos List -->
+            <div>
+                <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-2xl font-bold text-white">Todos los Videos</h3>
+                    <div class="text-sm text-gray-400">{{ videos.length }} videos</div>
+                </div>
+
+                <div v-if="!videosLoading && videos.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div v-for="video in videos" :key="video.id"
+                         @click="openVideoAnalytics(video)"
+                         class="group bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 hover:border-gray-600/50 rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-gray-900/20">
+
+                        <!-- Thumbnail -->
+                        <div class="relative">
+                            <img v-if="video.thumbnail"
+                                 :src="video.thumbnail"
+                                 :alt="video.title"
+                                 class="w-full h-48 object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-gray-900/60 to-transparent"></div>
+
+                            <!-- Duration -->
+                            <div class="absolute bottom-2 right-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
+                                {{ video.duration }}
+                            </div>
+
+                            <!-- Performance Score -->
+                            <div class="absolute top-2 left-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
+                                <span :class="getPerformanceColor(video.metrics?.performance_score || 0)">
+                                    {{ video.metrics?.performance_score || 0 }}/100
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="p-4">
+                                <h4 class="text-white font-semibold text-sm line-clamp-2 mb-2 group-hover:text-blue-300 transition-colors duration-300">
+                                {{ video.title }}
+                                </h4>
+
+                            <div class="space-y-2 text-xs text-gray-400">
+                                <div class="flex items-center justify-between">
+                                    <span>{{ formatDate(video.published_at) }}</span>
+                                    <span :class="getPerformanceColor(video.metrics?.performance_score || 0)">
+                                        {{ getPerformanceLevel(video.metrics?.performance_score || 0) }}
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <span>{{ formatNumber(video.statistics?.view_count || 0) }} vistas</span>
+                                    <span>{{ formatNumber(video.statistics?.like_count || 0) }} likes</span>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <span>{{ formatNumber(video.statistics?.comment_count || 0) }} comentarios</span>
+                                    <span>{{ (Number(video.metrics?.engagement_rate) || 0).toFixed(2) }}% engagement</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- All Videos List -->
-                <div>
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-2xl font-bold text-white">Todos los Videos</h3>
-                        <div class="text-sm text-gray-400">{{ videos.length }} videos</div>
-                    </div>
+                <!-- Loading -->
+                <div v-else-if="videosLoading" class="flex justify-center items-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                </div>
 
-                    <div v-if="!videosLoading && videos.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        <div v-for="video in videos" :key="video.id"
-                             @click="openVideoAnalytics(video)"
-                             class="group bg-gradient-to-br from-gray-800/60 to-gray-900/40 border border-gray-700/50 hover:border-gray-600/50 rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:shadow-gray-900/20">
-
-                            <!-- Thumbnail -->
-                            <div class="relative">
-                                <img v-if="video.thumbnail"
-                                     :src="video.thumbnail"
-                                     :alt="video.title"
-                                     class="w-full h-48 object-cover">
-                                <div class="absolute inset-0 bg-gradient-to-t from-gray-900/60 to-transparent"></div>
-
-                                <!-- Duration -->
-                                <div class="absolute bottom-2 right-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
-                                    {{ video.duration }}
-                                </div>
-
-                                <!-- Performance Score -->
-                                <div class="absolute top-2 left-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
-                                    <span :class="getPerformanceColor(video.metrics?.performance_score || 0)">
-                                        {{ video.metrics?.performance_score || 0 }}/100
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Content -->
-                            <div class="p-4">
-                                <h4 class="text-white font-semibold text-sm line-clamp-2 mb-2 group-hover:text-blue-300 transition-colors duration-300">
-                                    {{ video.title }}
-                                </h4>
-
-                                <div class="space-y-2 text-xs text-gray-400">
-                                    <div class="flex items-center justify-between">
-                                        <span>{{ formatDate(video.published_at) }}</span>
-                                        <span :class="getPerformanceColor(video.metrics?.performance_score || 0)">
-                                            {{ getPerformanceLevel(video.metrics?.performance_score || 0) }}
-                                        </span>
-                                    </div>
-
-                                    <div class="flex items-center justify-between">
-                                        <span>{{ formatNumber(video.statistics?.view_count || 0) }} vistas</span>
-                                        <span>{{ formatNumber(video.statistics?.like_count || 0) }} likes</span>
-                                    </div>
-
-                                    <div class="flex items-center justify-between">
-                                        <span>{{ formatNumber(video.statistics?.comment_count || 0) }} comentarios</span>
-                                        <span>{{ (Number(video.metrics?.engagement_rate) || 0).toFixed(2) }}% engagement</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Loading -->
-                    <div v-else-if="videosLoading" class="flex justify-center items-center py-12">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                    </div>
-
-                    <!-- No videos -->
-                    <div v-else class="text-center py-12">
-                        <p class="text-gray-400">No hay videos sincronizados para este canal</p>
-                    </div>
+                <!-- No videos -->
+                <div v-else class="text-center py-12">
+                    <p class="text-gray-400">No hay videos sincronizados para este canal</p>
+                </div>
                 </div>
             </div>
 
@@ -817,5 +872,90 @@ onMounted(() => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* Revenue shine animation */
+.revenue-shine {
+    background: linear-gradient(135deg, 
+        rgba(251, 191, 36, 0.05) 0%, 
+        rgba(251, 191, 36, 0.15) 50%, 
+        rgba(251, 191, 36, 0.05) 100%);
+    box-shadow: 
+        0 0 20px rgba(251, 191, 36, 0.1),
+        0 0 40px rgba(251, 191, 36, 0.05),
+        inset 0 1px 0 rgba(251, 191, 36, 0.1);
+    transition: all 0.3s ease;
+    animation: borderPulse 4s ease-in-out infinite;
+}
+
+.revenue-shine:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 4px 25px rgba(251, 191, 36, 0.15),
+        0 8px 50px rgba(251, 191, 36, 0.1),
+        inset 0 1px 0 rgba(251, 191, 36, 0.2);
+}
+
+.shine-animation {
+    animation: shine 3s ease-in-out infinite;
+    transform: translateX(-100%) skewX(-15deg);
+    width: 100%;
+}
+
+@keyframes shine {
+    0% {
+        transform: translateX(-120%) skewX(-15deg);
+        opacity: 0;
+    }
+    20% {
+        opacity: 1;
+    }
+    80% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateX(120%) skewX(-15deg);
+        opacity: 0;
+    }
+}
+
+/* Additional glow effect for the revenue amount */
+.revenue-shine .text-5xl {
+    text-shadow: 
+        0 0 10px rgba(251, 191, 36, 0.3),
+        0 0 20px rgba(251, 191, 36, 0.2),
+        0 0 30px rgba(251, 191, 36, 0.1);
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        text-shadow: 
+            0 0 10px rgba(251, 191, 36, 0.3),
+            0 0 20px rgba(251, 191, 36, 0.2),
+            0 0 30px rgba(251, 191, 36, 0.1);
+    }
+    to {
+        text-shadow: 
+            0 0 15px rgba(251, 191, 36, 0.4),
+            0 0 25px rgba(251, 191, 36, 0.3),
+            0 0 35px rgba(251, 191, 36, 0.2);
+    }
+}
+
+/* Pulse effect for the border */
+@keyframes borderPulse {
+    0%, 100% {
+        border-color: rgba(251, 191, 36, 0.3);
+        box-shadow: 
+            0 0 20px rgba(251, 191, 36, 0.1),
+            0 0 40px rgba(251, 191, 36, 0.05);
+    }
+    50% {
+        border-color: rgba(251, 191, 36, 0.5);
+        box-shadow: 
+            0 0 25px rgba(251, 191, 36, 0.2),
+            0 0 50px rgba(251, 191, 36, 0.1);
+    }
 }
 </style>

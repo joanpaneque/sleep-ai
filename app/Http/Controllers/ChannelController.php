@@ -2254,4 +2254,33 @@ class ChannelController extends Controller
         if ($num >= 1000) return number_format($num / 1000, 1) . 'K';
         return number_format($num);
     }
+
+    /**
+     * Get daily statistics for charts (global analytics)
+     */
+    public function getDailyStats(Request $request)
+    {
+        try {
+            // Get all daily analytics reports from all channels
+            $dailyStats = \App\Models\DailyChannelStat::orderBy('datetime')
+                ->get()
+                ->map(function ($stat) {
+                    return [
+                        'datetime' => $stat->datetime->toISOString(),
+                        'total_views' => $stat->total_views ?? 0
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $dailyStats
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener estadísticas diarias: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

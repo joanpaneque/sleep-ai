@@ -69,7 +69,7 @@ Route::middleware('auth')->group(function () {
     Route::get('analytics/global-stats', [ChannelController::class, 'getGlobalStats']);
     Route::get('analytics/all-videos', [ChannelController::class, 'getAllVideos']);
     Route::post('analytics/sync-all', [ChannelController::class, 'triggerGlobalSync']);
-    Route::get('/analytics/daily-stats', [AnalyticsController::class, 'getDailyStats'])
+    Route::get('/analytics/daily-stats', [ChannelController::class, 'getDailyStats'])
         ->name('analytics.daily-stats');
 
     Route::post('generate-webhook-token', [ChannelController::class, 'regenerateToken'])->name('generate-webhook-token');
@@ -104,6 +104,7 @@ Route::prefix('api')->group(function () {
 
     // YouTube Analytics API routes
     Route::prefix('channels/{channel}')->group(function () {
+        Route::get('analytics/data-range', [AnalyticsController::class, 'getDataRange']);
         Route::get('analytics/daily', [AnalyticsController::class, 'getDailyAnalytics']);
         Route::get('analytics/geographic', [AnalyticsController::class, 'getGeographicAnalytics']);
         Route::get('analytics/devices', [AnalyticsController::class, 'getDeviceAnalytics']);

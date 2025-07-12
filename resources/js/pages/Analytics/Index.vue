@@ -74,7 +74,18 @@ const groupDataByInterval = (data) => {
 const fetchGlobalAnalytics = async () => {
     statsLoading.value = true
     try {
-        const response = await fetch('/analytics/global-stats')
+        const response = await fetch('/analytics/global-stats', {
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json()
 
         if (data.success) {
@@ -93,7 +104,18 @@ const fetchGlobalAnalytics = async () => {
 const fetchAllVideos = async () => {
     videosLoading.value = true
     try {
-        const response = await fetch('/analytics/all-videos?limit=100&order_by=view_count&order_direction=desc')
+        const response = await fetch('/analytics/all-videos?limit=100&order_by=view_count&order_direction=desc', {
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json()
 
         if (data.success) {
@@ -130,7 +152,18 @@ const fetchDailyStats = async () => {
     dailyStatsLoading.value = true;
     try {
         // Ya no necesitamos el parámetro timeframe porque queremos todos los datos
-        const response = await fetch('/analytics/daily-stats');
+        const response = await fetch('/analytics/daily-stats', {
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json();
 
         if (data.success) {
@@ -152,11 +185,18 @@ const triggerGlobalSync = async () => {
     try {
         const response = await fetch('/analytics/sync-all', {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             }
         })
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`)
+        }
 
         const data = await response.json()
 

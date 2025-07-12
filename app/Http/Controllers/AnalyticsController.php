@@ -24,9 +24,9 @@ class AnalyticsController extends Controller
             ->orderBy('report_date')
             ->get();
 
-        // Get revenue data from both daily and revenue report types
+        // Get revenue data from daily reports only (to avoid duplicates with revenue type)
         $revenueData = YoutubeAnalyticsReport::where('channel_id', $channel->id)
-            ->whereIn('report_type', ['daily', 'revenue'])
+            ->where('report_type', 'daily')
             ->whereBetween('report_date', [$startDate, $endDate])
             ->get();
 
@@ -34,12 +34,7 @@ class AnalyticsController extends Controller
             'success' => true,
             'data' => $analytics,
             'summary' => [
-                'total_revenue' => $revenueData->sum('estimated_revenue'),
-                'total_ad_revenue' => $revenueData->sum('estimated_ad_revenue'),
-                'total_gross_revenue' => $revenueData->sum('gross_revenue'),
-                'avg_cpm' => $revenueData->where('cpm', '>', 0)->avg('cpm'),
-                'total_monetized_playbacks' => $revenueData->sum('monetized_playbacks'),
-                'total_ad_impressions' => $revenueData->sum('ad_impressions'),
+                'total_revenue' => round($revenueData->sum('estimated_revenue'), 2),
             ]
         ]);
     }
@@ -301,8 +296,8 @@ class AnalyticsController extends Controller
             })
             ->values();
 
-        return response()->json([
-            'success' => true,
+            return response()->json([
+                'success' => true,
             'data' => $analytics
         ]);
     }
@@ -319,7 +314,7 @@ class AnalyticsController extends Controller
             ->orderBy('elapsed_video_time_ratio')
             ->get();
 
-        return response()->json([
+            return response()->json([
             'success' => true,
             'data' => $analytics
         ]);
@@ -362,6 +357,50 @@ class AnalyticsController extends Controller
         return response()->json([
             'success' => true,
             'data' => $summary
+        ]);
+    }
+
+    /**
+     * Get the available data range and total historical revenue for a channel
+     */
+    public function getDataRange(Channel $channel): JsonResponse
+    {
+        $revenueData = YoutubeAnalyticsReport::where('channel_id', $channel->id)
+            ->where('report_type', 'daily')
+            ->whereNotNull('estimated_revenue')
+            ->get();
+
+        if ($revenueData->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'has_revenue_data' => false,
+                    'start_date' => null,
+                    'end_date' => null,
+                    'total_historical_revenue' => 0,
+                    'total_days' => 0,
+                    'average_daily' => 0
+                ]
+            ]);
+        }
+
+        $startDate = $revenueData->min('report_date');
+        $endDate = $revenueData->max('report_date');
+        $totalRevenue = $revenueData->sum('estimated_revenue');
+        $totalDays = $revenueData->count();
+        $averageDaily = $totalDays > 0 ? $totalRevenue / $totalDays : 0;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'has_revenue_data' => true,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'total_historical_revenue' => round($totalRevenue, 2),
+                'total_days' => $totalDays,
+                'average_daily' => round($averageDaily, 2),
+                'projected_monthly' => round($averageDaily * 30, 2)
+            ]
         ]);
     }
 } 
