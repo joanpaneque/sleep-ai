@@ -37,7 +37,7 @@ jobs:
         run: tar -czf app.tgz ./*
 
       - name: SSH SCP and deployment
-        uses: cross-the-world/ssh-scp-ssh-pipelines@latest
+        uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.2
         env:
           WELCOME: "ssh scp ssh pipelines"
           LASTSSH: "Doing something after copying"
