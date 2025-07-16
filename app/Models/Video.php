@@ -62,4 +62,9 @@ class Video extends Model
 
         return $size;
     }
+
+    public function topics()
+    {
+        return $this->hasMany(VideoTopic::class);
+    }
 }

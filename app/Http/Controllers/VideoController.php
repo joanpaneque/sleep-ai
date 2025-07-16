@@ -130,6 +130,11 @@ class VideoController extends Controller
         }
     }
 
+    public function getTopics(Video $video)
+    {
+        return response()->json($video->topics);
+    }
+
     public function uploadTopics(Request $request, Video $video)
     {
 
