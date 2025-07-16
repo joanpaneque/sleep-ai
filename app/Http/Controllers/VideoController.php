@@ -132,7 +132,9 @@ class VideoController extends Controller
 
     public function getTopics(Video $video)
     {
-        return response()->json($video->topics);
+        // get all the topics from the channel
+        $topics = $video->channel->topics;
+        return response()->json($topics);
     }
 
     public function uploadTopics(Request $request, Video $video)

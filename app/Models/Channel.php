@@ -124,4 +124,9 @@ class Channel extends Model
             ->where('report_type', 'daily')
             ->latest('report_date');
     }
+
+    public function topics()
+    {
+        return $this->hasManyThrough(VideoTopic::class, Video::class);
+    }
 }
