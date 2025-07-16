@@ -82,6 +82,7 @@ Route::middleware('auth')->group(function () {
     // Additional video routes
     Route::post('/videos/{video}/queue', [VideoController::class, 'queueVideo'])->name('videos.queue');
     Route::post('/videos/{video}/update-status', [VideoController::class, 'updateStatus'])->name('videos.updateStatus');
+    Route::post('/videos/{video}/upload-topics', [VideoController::class, 'uploadTopics'])->name('videos.uploadTopics');
     Route::delete('/videos/{video}/soft-delete', [VideoController::class, 'softDelete'])->name('videos.softDelete');
 
     Route::delete('channels/{channel}/videos', [ChannelController::class, 'deleteVideos'])->name('channels.videos.delete');

@@ -130,6 +130,26 @@ class VideoController extends Controller
         }
     }
 
+    public function uploadTopics(Request $request, Video $video)
+    {
+
+        $topics = $request->topics;
+
+        try {
+            foreach ($topics as $topic) {
+                $video->topics()->create([  
+                    'title' => $topic['titulo'],
+                    'description' => $topic['descripcion']
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error uploading topics', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Error uploading topics'], 500);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
