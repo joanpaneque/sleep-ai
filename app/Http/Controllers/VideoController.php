@@ -134,7 +134,8 @@ class VideoController extends Controller
     {
         // get all the topics from the channel
         $topics = $video->channel->topics;
-        return response()->json($topics);
+        // return the json but stringified
+        return response()->json(["result" => json_encode($topics)]);
     }
 
     public function uploadTopics(Request $request, Video $video)
