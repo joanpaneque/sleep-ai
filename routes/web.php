@@ -82,12 +82,14 @@ Route::middleware('auth')->group(function () {
     // Additional video routes
     Route::post('/videos/{video}/queue', [VideoController::class, 'queueVideo'])->name('videos.queue');
     Route::post('/videos/{video}/update-status', [VideoController::class, 'updateStatus'])->name('videos.updateStatus');
-    Route::post('/videos/{video}/upload-topics', [VideoController::class, 'uploadTopics'])->name('videos.uploadTopics');
-    Route::get('/videos/{video}/topics', [VideoController::class, 'getTopics'])->name('videos.getTopics');
+
     Route::delete('/videos/{video}/soft-delete', [VideoController::class, 'softDelete'])->name('videos.softDelete');
 
     Route::delete('channels/{channel}/videos', [ChannelController::class, 'deleteVideos'])->name('channels.videos.delete');
 });
+
+Route::post('/videos/{video}/upload-topics', [VideoController::class, 'uploadTopics'])->name('videos.uploadTopics');
+Route::get('/videos/{video}/topics', [VideoController::class, 'getTopics'])->name('videos.getTopics');
 
 // Guest routes
 Route::middleware('guest')->group(function () {
